@@ -354,6 +354,14 @@ button.primary:hover {
   box-shadow: 0 10px 20px rgba(225, 6, 0, 0.25);
 }
 
+button.blue {
+  background: var(--c-blue);
+}
+
+button.blue:hover {
+  box-shadow: 0 10px 20px rgba(6, 0, 225, 0.25);
+}
+
 button.link {
   background: none;
   color: var(--c-blue);
