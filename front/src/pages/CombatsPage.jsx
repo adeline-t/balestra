@@ -11,6 +11,8 @@ export default function CombatsPage({
   canEditCombat,
   onCreateCombat,
   onOpenCombat,
+  onOpenFinalScores,
+  onOpenResults,
   onEditCombat,
   onDeleteCombat,
   onToggleShares,
@@ -43,32 +45,54 @@ export default function CombatsPage({
             {combats.map((c) => {
               const canEdit = canEditCombat(c);
               return (
-                <div key={c.id} className="grid-row">
-                  <div>
-                    <strong>{c.name || "Sans nom"}</strong>
-                    <div className="muted">
-                      {c.created_at ? c.created_at.slice(0, 19).replace("T", " ") : ""}
+                  <div key={c.id} className="grid-row grid-row-compact">
+                    <div className="combat-main">
+                      <strong>{c.name || "Sans nom"}</strong>
+                      <div className="muted">
+                        {c.created_at ? c.created_at.slice(0, 19).replace("T", " ") : ""}
+                      </div>
+                      <div className="combat-meta">
+                        {c.tech_code ? <span className="badge badge-outline">Code {c.tech_code}</span> : null}
+                        {c.is_shared ? <span className="badge badge-outline">Partage avec moi</span> : null}
+                      </div>
                     </div>
-                    {c.tech_code ? <div className="muted">Code: {c.tech_code}</div> : null}
-                    {c.is_shared ? <span className="badge badge-outline">Partage avec moi</span> : null}
-                  </div>
-                    <div className="grid-actions">
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => onOpenCombat(c)}
-                        disabled={isBusy}
-                      >
-                        Noter ce combat
-                      </button>
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => onToggleEvaluations(c.id)}
-                        disabled={isBusy}
-                      >
-                        {combatEvaluations[c.id] ? "Masquer notations" : "Voir notations"}
-                      </button>
+
+                    <div className="combat-actions">
+                      <div className="action-group">
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => onOpenCombat(c)}
+                          disabled={isBusy}
+                        >
+                          Noter
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => onOpenFinalScores(c)}
+                          disabled={isBusy}
+                        >
+                          Note finale
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => onOpenResults(c)}
+                          disabled={isBusy}
+                        >
+                          Resultats
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => onToggleEvaluations(c.id)}
+                          disabled={isBusy}
+                        >
+                          {combatEvaluations[c.id] ? "Masquer notations" : "Voir notations"}
+                        </button>
+                      </div>
+
                       {Array.isArray(combatEvaluations[c.id]) && (
                         <div className="note-list">
                           {combatEvaluations[c.id].length === 0 ? (
@@ -85,8 +109,9 @@ export default function CombatsPage({
                           )}
                         </div>
                       )}
+
                       {canEdit && (
-                        <>
+                        <div className="action-group action-group-secondary">
                           <button
                             type="button"
                             className="ghost"
@@ -95,63 +120,63 @@ export default function CombatsPage({
                           >
                             Editer
                           </button>
-                        <button
-                          type="button"
-                          className="ghost danger"
-                          onClick={() => onDeleteCombat(c.id)}
-                          disabled={isBusy}
-                        >
-                          Supprimer
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={() => onToggleShares(c.id)}
-                          disabled={isBusy}
-                        >
-                          {shareLists[c.id] ? "Masquer partages" : "Voir partages"}
-                        </button>
-                        <div className="share-row">
-                          <select
-                            value={shareTargets[c.id] || ""}
-                            onChange={(e) => onShareChange(c.id, e.target.value)}
+                          <button
+                            type="button"
+                            className="ghost danger"
+                            onClick={() => onDeleteCombat(c.id)}
+                            disabled={isBusy}
                           >
-                            <option value="">Partager avec...</option>
-                            {shareUsers.map((u) => (
-                              <option key={u.id} value={u.id}>
-                                {u.email}
-                              </option>
-                            ))}
-                          </select>
+                            Supprimer
+                          </button>
                           <button
                             type="button"
                             className="ghost"
-                            onClick={() => onShareCombat(c.id)}
+                            onClick={() => onToggleShares(c.id)}
                             disabled={isBusy}
                           >
-                            Partager
+                            {shareLists[c.id] ? "Masquer partages" : "Voir partages"}
                           </button>
-                        </div>
-                        {Array.isArray(shareLists[c.id]) && shareLists[c.id].length > 0 && (
-                          <div className="share-list">
-                            {shareLists[c.id].map((u) => (
-                              <div key={u.id} className="share-pill">
-                                <span>{u.email}</span>
-                                <button
-                                  type="button"
-                                  className="link"
-                                  onClick={() => onRevokeShare(c.id, u.id)}
-                                >
-                                  Retirer
-                                </button>
-                              </div>
-                            ))}
+                          <div className="share-row">
+                            <select
+                              value={shareTargets[c.id] || ""}
+                              onChange={(e) => onShareChange(c.id, e.target.value)}
+                            >
+                              <option value="">Partager avec...</option>
+                              {shareUsers.map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.email}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => onShareCombat(c.id)}
+                              disabled={isBusy}
+                            >
+                              Partager
+                            </button>
                           </div>
-                        )}
-                      </>
-                    )}
+                          {Array.isArray(shareLists[c.id]) && shareLists[c.id].length > 0 && (
+                            <div className="share-list">
+                              {shareLists[c.id].map((u) => (
+                                <div key={u.id} className="share-pill">
+                                  <span>{u.email}</span>
+                                  <button
+                                    type="button"
+                                    className="link"
+                                    onClick={() => onRevokeShare(c.id, u.id)}
+                                  >
+                                    Retirer
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
               );
             })}
           </div>

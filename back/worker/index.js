@@ -449,18 +449,23 @@ export default {
       if (!id || Number.isNaN(Number(id))) {
         return jsonResponse({ error: "invalid id" }, 400);
       }
+      const sessionType = url.searchParams.get("session") || "technique";
       const canAccess = await hasCombatAccess(env, id, user);
       if (!canAccess) return jsonResponse({ error: "Forbidden" }, 403);
 
       const row = await env.balestra_db
-        .prepare("SELECT id, payload, created_at FROM evaluations WHERE combat_id = ?1 AND author_user_id = ?2")
-        .bind(id, user.id)
+        .prepare(
+          "SELECT id, payload, created_at, artistic_scores, session_type FROM evaluations WHERE combat_id = ?1 AND author_user_id = ?2 AND session_type = ?3"
+        )
+        .bind(id, user.id, sessionType)
         .first();
       if (!row) return jsonResponse({ evaluation: null });
 
       return jsonResponse({
         id: row.id,
         evaluation: safeParseJson(row.payload),
+        artistic_scores: safeParseJson(row.artistic_scores) || {},
+        session_type: row.session_type,
         created_at: row.created_at
       });
     }
@@ -480,16 +485,18 @@ export default {
       if (!body || typeof body.evaluation !== "object") {
         return jsonResponse({ error: "evaluation is required" }, 400);
       }
+      const sessionType = body.session_type === "libre" ? "libre" : "technique";
+      const artisticScores = body.artistic_scores && typeof body.artistic_scores === "object" ? body.artistic_scores : {};
 
       const existing = await env.balestra_db
-        .prepare("SELECT id FROM evaluations WHERE combat_id = ?1 AND author_user_id = ?2")
-        .bind(id, user.id)
+        .prepare("SELECT id FROM evaluations WHERE combat_id = ?1 AND author_user_id = ?2 AND session_type = ?3")
+        .bind(id, user.id, sessionType)
         .first();
 
       if (existing) {
         await env.balestra_db
-          .prepare("UPDATE evaluations SET payload = ?1 WHERE id = ?2")
-          .bind(JSON.stringify(body.evaluation), existing.id)
+          .prepare("UPDATE evaluations SET payload = ?1, artistic_scores = ?2 WHERE id = ?3")
+          .bind(JSON.stringify(body.evaluation), JSON.stringify(artisticScores), existing.id)
           .run();
         return jsonResponse({ ok: true, updated: true });
       }
@@ -497,15 +504,27 @@ export default {
       const createdAt = new Date().toISOString();
       await env.balestra_db
         .prepare(
-          "INSERT INTO evaluations (name, payload, created_at, combat_id, author_user_id) VALUES (?1, ?2, ?3, ?4, ?5)"
+          "INSERT INTO evaluations (name, payload, created_at, combat_id, author_user_id, session_type, artistic_scores) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         )
-        .bind(body.name || "Evaluation", JSON.stringify(body.evaluation), createdAt, id, user.id)
+        .bind(
+          body.name || "Evaluation",
+          JSON.stringify(body.evaluation),
+          createdAt,
+          id,
+          user.id,
+          sessionType,
+          JSON.stringify(artisticScores)
+        )
         .run();
 
       return jsonResponse({ ok: true, created_at: createdAt }, 201);
     }
 
-    if (url.pathname.startsWith("/api/combats/") && url.pathname.endsWith("/evaluations") && request.method === "GET") {
+    if (
+      url.pathname.startsWith("/api/combats/") &&
+      url.pathname.endsWith("/evaluations") &&
+      request.method === "GET"
+    ) {
       const { user, error } = await requireAuth(request, env);
       if (error) return error;
 
@@ -523,6 +542,88 @@ export default {
         .bind(id)
         .all();
       return jsonResponse({ evaluations: results });
+    }
+
+    if (
+      url.pathname.startsWith("/api/combats/") &&
+      url.pathname.endsWith("/evaluations/full") &&
+      request.method === "GET"
+    ) {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canAccess = await hasCombatAccess(env, id, user);
+      if (!canAccess) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const { results } = await env.balestra_db
+        .prepare(
+          "SELECT e.id, e.created_at, e.payload, e.session_type, e.artistic_scores, u.email as author_email FROM evaluations e JOIN users u ON u.id = e.author_user_id WHERE e.combat_id = ?1 ORDER BY e.created_at DESC"
+        )
+        .bind(id)
+        .all();
+      return jsonResponse({ evaluations: results });
+    }
+
+    if (
+      url.pathname.startsWith("/api/combats/") &&
+      url.pathname.endsWith("/penalties") &&
+      request.method === "GET"
+    ) {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canAccess = await hasCombatAccess(env, id, user);
+      if (!canAccess) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const sessionType = url.searchParams.get("session") || "technique";
+      const { results } = await env.balestra_db
+        .prepare(
+          "SELECT penalty_id, is_validated FROM combat_penalty_validations WHERE combat_id = ?1 AND session_type = ?2"
+        )
+        .bind(id, sessionType)
+        .all();
+      return jsonResponse({ penalties: results });
+    }
+
+    if (
+      url.pathname.startsWith("/api/combats/") &&
+      url.pathname.endsWith("/penalties") &&
+      request.method === "POST"
+    ) {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canEdit = await canEditCombat(env, id, user);
+      if (!canEdit) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const body = await readBody(request);
+      const sessionType = body?.session_type === "libre" ? "libre" : "technique";
+      const penalties = Array.isArray(body?.penalties) ? body.penalties : [];
+      const now = new Date().toISOString();
+
+      const stmt = env.balestra_db.prepare(
+        "INSERT INTO combat_penalty_validations (combat_id, session_type, penalty_id, is_validated, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT(combat_id, session_type, penalty_id) DO UPDATE SET is_validated = excluded.is_validated, updated_at = excluded.updated_at"
+      );
+
+      for (const p of penalties) {
+        if (!p || typeof p.penalty_id !== "string") continue;
+        const isValidated = p.is_validated ? 1 : 0;
+        await stmt.bind(id, sessionType, p.penalty_id, isValidated, now, now).run();
+      }
+
+      return jsonResponse({ ok: true });
     }
 
     return jsonResponse({ error: "Not Found" }, 404);

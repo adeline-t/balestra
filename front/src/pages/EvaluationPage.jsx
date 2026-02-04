@@ -7,6 +7,15 @@ import Penalties from "../components/Penalties.jsx";
 import Summary from "../components/Summary.jsx";
 import { getCategoryLabel } from "../data/rules.js";
 
+const ART_LABELS = {
+  scenario: "Scenario",
+  mise_en_scene: "Mise en scene",
+  costumes: "Costumes et accessoires",
+  performance_theatrale: "Performance theatrale",
+  performance_corporelle: "Performance corporelle",
+  occupation_espace: "Occupation de l'espace"
+};
+
 export default function EvaluationPage({
   combatName,
   combatTechCode,
@@ -31,11 +40,12 @@ export default function EvaluationPage({
   phrases,
   onRemovePhrase,
   onUpdatePhrase,
+  onAdjustActionPenalty,
+  disqualified,
   penaltyCounts,
   setPenaltyCounts,
   computed,
   penaltyTotal,
-  disqualified,
   isInfoOpen,
   onOpenInfo,
   onCloseInfo,
@@ -44,7 +54,11 @@ export default function EvaluationPage({
   onFinishNoSave,
   onFinishSave,
   isBusy,
-  onBack
+  onBack,
+  sessionType,
+  onSessionChange,
+  artisticScores,
+  onArtisticChange
 }) {
   return (
     <div className="page">
@@ -79,7 +93,7 @@ export default function EvaluationPage({
         </div>
         <div className="header-actions">
           <button className="ghost" type="button" onClick={onBack} disabled={isBusy}>
-            Retour a l'index
+            Retour aux combats
           </button>
           <button className="ghost" type="button" onClick={onOpenInfo}>
             Infos notation
@@ -92,6 +106,30 @@ export default function EvaluationPage({
           </button>
         </div>
       </header>
+
+      <section className="card">
+        <div className="tabs">
+          <button
+            type="button"
+            className={sessionType === "technique" ? "tab-btn active" : "tab-btn"}
+            onClick={() => onSessionChange("technique")}
+          >
+            Programme Technique
+          </button>
+          <button
+            type="button"
+            className={sessionType === "libre" ? "tab-btn active" : "tab-btn"}
+            onClick={() => onSessionChange("libre")}
+          >
+            Programme Libre
+          </button>
+        </div>
+        <p className="muted">
+          {sessionType === "technique"
+            ? "Notation technique uniquement."
+            : "Programme Libre : technique + artistique."}
+        </p>
+      </section>
 
       <InfoModal isOpen={isInfoOpen} onClose={onCloseInfo} />
 
@@ -123,7 +161,34 @@ export default function EvaluationPage({
         onNoteClick={onNoteClick}
       />
 
-      <PhraseTable phrases={phrases} onRemove={onRemovePhrase} onUpdate={onUpdatePhrase} />
+      <PhraseTable
+        phrases={phrases}
+        onRemove={onRemovePhrase}
+        onUpdate={onUpdatePhrase}
+        onAdjustActionPenalty={onAdjustActionPenalty}
+        disqualified={disqualified}
+      />
+
+      {sessionType === "libre" && (
+        <section className="card">
+          <h2>Notes artistiques (/5)</h2>
+          <div className="form">
+            {Object.entries(ART_LABELS).map(([key, label]) => (
+              <label key={key}>
+                {label}
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={artisticScores[key]}
+                  onChange={(e) => onArtisticChange(key, e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+      )}
 
       <Penalties
         penaltyCounts={penaltyCounts}

@@ -10,6 +10,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 1",
     label: "Action mal maitrisee",
     value: 0.25,
+    scope: "action",
     description:
       "Oubli, contact involontaire, fracas d'une arme au sol, pointe proche du visage."
   },
@@ -18,6 +19,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 1",
     label: "Sortie de l'espace scenique",
     value: 0.25,
+    scope: "action",
     description: "Sortie des deux pieds pendant une phrase d'armes."
   },
   {
@@ -25,6 +27,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 1",
     label: "Temps performance insuffisant/depasse",
     value: 0.25,
+    scope: "global",
     description: "Une penalite au-dela de 30 sec, puis une penalite toutes les 10 sec."
   },
   {
@@ -32,6 +35,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 1",
     label: "Retard modere",
     value: 0.25,
+    scope: "global",
     description:
       "Une penalite au-dela de 1 min (montage/demontage) ou presentation > 2 min apres dernier appel."
   },
@@ -40,6 +44,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 2",
     label: "Action dangereuse",
     value: 0.5,
+    scope: "action",
     description:
       "Mouvement improvise, touche involontaire, projection d'une arme hors scene, pointe au visage."
   },
@@ -48,6 +53,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 2",
     label: "Non respect du reglement",
     value: 0.5,
+    scope: "global",
     description:
       "Armes/accessoires/decors/costumes non conformes, jeu scenique/pause excessive, reclamation invalidee, arret medical non reconnu, bienseance, publicite."
   },
@@ -56,6 +62,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 2",
     label: "Temps de combat insuffisant",
     value: 0.5,
+    scope: "global",
     description: "Au-dela de 10 sec sous la limite autorisee."
   },
   {
@@ -63,6 +70,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 2",
     label: "Retard important",
     value: 0.5,
+    scope: "global",
     description:
       "Une penalite au-dela de 3 min (montage/demontage) ou presentation > 5 min apres dernier appel."
   },
@@ -71,6 +79,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 3",
     label: "Blessure identifiee",
     value: "DQ",
+    scope: "action",
     description:
       "Competiteur ou figurant blesse par une arme, un accessoire ou un decor."
   },
@@ -79,6 +88,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 3",
     label: "Faute contre l'esprit sportif",
     value: "DQ",
+    scope: "global",
     description: "Triche, comportement inapproprie, outrage."
   },
   {
@@ -86,6 +96,7 @@ export const PENALTY_PRESETS = [
     group: "Groupe 3",
     label: "Retard majeur",
     value: "DQ",
+    scope: "global",
     description:
       "Au-dela de 8 min (montage/demontage) ou presentation > 10 min apres dernier appel."
   }

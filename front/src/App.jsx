@@ -6,6 +6,8 @@ import CombatsPage from "./pages/CombatsPage.jsx";
 import CombatFormPage from "./pages/CombatFormPage.jsx";
 import EvaluationPage from "./pages/EvaluationPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
+import FinalScorePage from "./pages/FinalScorePage.jsx";
+import ResultsPage from "./pages/ResultsPage.jsx";
 import {
   DIFFICULTIES,
   PENALTY_PRESETS,
@@ -94,8 +96,26 @@ export default function App() {
   const [shareTargets, setShareTargets] = useState({});
   const [shareLists, setShareLists] = useState({});
   const [combatEvaluations, setCombatEvaluations] = useState({});
+  const [finalEvaluations, setFinalEvaluations] = useState([]);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
+  const [sessionType, setSessionType] = useState("technique");
+  const [artisticScores, setArtisticScores] = useState({
+    scenario: "",
+    mise_en_scene: "",
+    costumes: "",
+    performance_theatrale: "",
+    performance_corporelle: "",
+    occupation_espace: ""
+  });
+  const [penaltyValidations, setPenaltyValidations] = useState({
+    technique: {},
+    libre: {}
+  });
+  const [penaltyMajority, setPenaltyMajority] = useState({
+    technique: {},
+    libre: {}
+  });
 
   const apiFetch = async (path, options = {}) => {
     const headers = { ...(options.headers || {}) };
@@ -296,7 +316,12 @@ export default function App() {
       {
         difficulty: nextDifficulty,
         coef,
-        note: noteValue
+        note: noteValue,
+        actionPenalties: {
+          g1_mal_maitrisee: 0,
+          g1_sortie: 0,
+          g2_dangereuse: 0
+        }
       }
     ]);
 
@@ -321,7 +346,20 @@ export default function App() {
   }
 
   function handleRemove(index) {
-    setPhrases((prev) => prev.filter((_, idx) => idx !== index));
+    setPhrases((prev) => {
+      const removed = prev[index];
+      if (removed?.actionPenalties) {
+        setPenaltyCounts((counts) => {
+          const next = { ...counts };
+          Object.entries(removed.actionPenalties).forEach(([penaltyId, count]) => {
+            if (!count) return;
+            next[penaltyId] = Math.max(0, toNumber(next[penaltyId], 0) - count);
+          });
+          return next;
+        });
+      }
+      return prev.filter((_, idx) => idx !== index);
+    });
   }
 
   function handleUpdatePhrase(index, nextDifficulty, nextNote) {
@@ -341,6 +379,27 @@ export default function App() {
           : p
       )
     );
+  }
+
+  function handleAdjustActionPenalty(index, penaltyId, delta) {
+    if (!penaltyId || !delta) return;
+    setPhrases((prev) =>
+      prev.map((p, idx) => {
+        if (idx !== index) return p;
+        const nextCount = Math.max(0, toNumber(p.actionPenalties?.[penaltyId], 0) + delta);
+        return {
+          ...p,
+          actionPenalties: {
+            ...p.actionPenalties,
+            [penaltyId]: nextCount
+          }
+        };
+      })
+    );
+    setPenaltyCounts((prev) => ({
+      ...prev,
+      [penaltyId]: Math.max(0, toNumber(prev[penaltyId], 0) + delta)
+    }));
   }
 
   function handleReset() {
@@ -377,6 +436,14 @@ export default function App() {
     setCategory("");
     setDifficulty("");
     setNote("");
+    setArtisticScores({
+      scenario: "",
+      mise_en_scene: "",
+      costumes: "",
+      performance_theatrale: "",
+      performance_corporelle: "",
+      occupation_espace: ""
+    });
   }
 
   function applyEvaluation(evalData) {
@@ -389,6 +456,105 @@ export default function App() {
     setCategory(safe.category !== undefined ? String(safe.category) : "");
     setDifficulty("");
     setNote("");
+  }
+
+  function applyArtisticScores(scores) {
+    const safe = scores || {};
+    setArtisticScores({
+      scenario: safe.scenario ?? "",
+      mise_en_scene: safe.mise_en_scene ?? "",
+      costumes: safe.costumes ?? "",
+      performance_theatrale: safe.performance_theatrale ?? "",
+      performance_corporelle: safe.performance_corporelle ?? "",
+      occupation_espace: safe.occupation_espace ?? ""
+    });
+  }
+
+  function safeJson(value) {
+    if (typeof value !== "string") return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  function computeEvaluation(evalData, artisticScoresValue) {
+    if (!evalData) return null;
+    const phrases = Array.isArray(evalData.phrases) ? evalData.phrases : [];
+    const penaltyCounts = evalData.penaltyCounts || {};
+    const durationValue = evalData.duration || "";
+    const combatTimeValue = evalData.combatTime || "";
+    const categoryValue = evalData.category || "";
+
+    const selected = getModeFromCategory(categoryValue);
+    const timeRuleValue = selected ? TIME_RULES[selected] : null;
+    const durationSeconds = parseMmss(durationValue);
+    const combatSeconds = parseMmss(combatTimeValue);
+    const combatMinSeconds = timeRuleValue ? parseMmss(timeRuleValue.combatMin) : null;
+
+    const autoCombatPenalty =
+      !timeRuleValue || combatSeconds === null || combatMinSeconds === null
+        ? 0
+        : combatSeconds < combatMinSeconds - 10
+          ? 1
+          : 0;
+
+    const effectivePenaltyCounts = { ...penaltyCounts };
+    effectivePenaltyCounts.g2_temps_combat =
+      toNumber(effectivePenaltyCounts.g2_temps_combat, 0) + autoCombatPenalty;
+
+    const weightedSum = phrases.reduce((sum, p) => sum + p.note * p.coef, 0);
+    const avgWeighted = phrases.length === 0 ? 0 : weightedSum / phrases.length;
+    const score10 = avgWeighted * 2;
+
+    const artValues = artisticScoresValue && typeof artisticScoresValue === "object"
+      ? Object.values(artisticScoresValue).map((v) => toNumber(v, 0))
+      : [];
+    const artisticAverage = artValues.length
+      ? artValues.reduce((sum, v) => sum + v, 0) / artValues.length
+      : null;
+
+    const libreScore = artisticAverage !== null ? (score10 * artisticAverage) / 5 : null;
+
+    return {
+      avgWeighted,
+      score10,
+      artisticAverage,
+      libreScore
+    };
+  }
+
+  function computePenaltyMajority(evaluations) {
+    const sessions = { technique: [], libre: [] };
+    evaluations.forEach((e) => {
+      const key = e.session_type === "libre" ? "libre" : "technique";
+      sessions[key].push(e);
+    });
+
+    const result = { technique: {}, libre: {} };
+    Object.entries(sessions).forEach(([session, list]) => {
+      const total = list.length;
+      const threshold = Math.ceil(total / 2);
+      const counts = {};
+      PENALTY_PRESETS.forEach((p) => {
+        counts[p.id] = 0;
+      });
+      list.forEach((e) => {
+        const payload = safeJson(e.payload) || {};
+        const penaltyCountsValue = payload.penaltyCounts || {};
+        PENALTY_PRESETS.forEach((p) => {
+          const count = toNumber(penaltyCountsValue[p.id], 0);
+          if (count > 0) counts[p.id] += 1;
+        });
+      });
+      const map = {};
+      PENALTY_PRESETS.forEach((p) => {
+        map[p.id] = total > 0 && counts[p.id] >= threshold;
+      });
+      result[session] = map;
+    });
+    return result;
   }
 
   async function handleLogin(event) {
@@ -483,16 +649,17 @@ export default function App() {
     setRoute("combat-create");
   }
 
-  async function handleOpenCombat(combat) {
+  async function loadEvaluationForSession(combat, nextSession) {
     setIsBusy(true);
     try {
-      const res = await apiFetch(`/api/combats/${combat.id}/evaluation`);
+      const res = await apiFetch(`/api/combats/${combat.id}/evaluation?session=${nextSession}`);
       if (!res.ok) throw new Error("failed");
       const data = await res.json();
       resetEvaluation();
       if (data.evaluation) {
         applyEvaluation(data.evaluation);
       }
+      applyArtisticScores(data.artistic_scores || {});
       setCombatId(combat.id);
       setCombatName(combat.name);
       setCombatCategory(combat.category || "");
@@ -503,12 +670,69 @@ export default function App() {
       setCombatDescription(combat.description || "");
       setCombatTechCode(combat.tech_code || "");
       setCategory(combat.category || "");
+      setSessionType(nextSession);
       setRoute("evaluation");
     } catch {
       setIndexStatus("Impossible de charger ce combat.");
     } finally {
       setIsBusy(false);
     }
+  }
+
+  async function handleOpenCombat(combat) {
+    await loadEvaluationForSession(combat, "technique");
+  }
+
+  async function handleSessionChange(nextSession) {
+    if (!combatId) return;
+    const proceed = confirm("Changer de session sans sauvegarder ? Les modifications en cours seront perdues.");
+    if (!proceed) return;
+    await loadEvaluationForSession(
+      {
+        id: combatId,
+        name: combatName,
+        category: combatCategory,
+        club: combatClub,
+        fencers: combatFencers,
+        description: combatDescription,
+        tech_code: combatTechCode
+      },
+      nextSession
+    );
+  }
+
+  async function handleOpenFinalScores(combat) {
+    setIsBusy(true);
+    try {
+      const res = await apiFetch(`/api/combats/${combat.id}/evaluations/full`);
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      const list = Array.isArray(data.evaluations) ? data.evaluations : [];
+      const computedList = list.map((e) => ({
+        ...e,
+        computed: computeEvaluation(
+          e.payload ? safeJson(e.payload) : null,
+          e.artistic_scores ? safeJson(e.artistic_scores) : null
+        )
+      }));
+      const majority = computePenaltyMajority(list);
+      setPenaltyMajority(majority);
+      setFinalEvaluations(computedList);
+      setCombatId(combat.id);
+      setCombatName(combat.name || "");
+      setCombatTechCode(combat.tech_code || "");
+      setRoute("final-scores");
+      await loadPenaltyValidations(combat.id, majority);
+    } catch {
+      setIndexStatus("Impossible de charger les notes.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleOpenResults(combat) {
+    await handleOpenFinalScores(combat);
+    setRoute("results");
   }
 
   function handleEditCombat(combat) {
@@ -562,28 +786,6 @@ export default function App() {
     }
   }
 
-  const loadShares = async (id) => {
-    try {
-      const res = await apiFetch(`/api/combats/${id}/shares`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setShareLists((prev) => ({
-        ...prev,
-        [id]: Array.isArray(data.users) ? data.users : []
-      }));
-    } catch {
-      // ignore
-    }
-  };
-
-  const toggleShares = async (id) => {
-    if (shareLists[id]) {
-      setShareLists((prev) => ({ ...prev, [id]: null }));
-      return;
-    }
-    await loadShares(id);
-  };
-
   const loadCombatEvaluations = async (id) => {
     try {
       const res = await apiFetch(`/api/combats/${id}/evaluations`);
@@ -604,6 +806,28 @@ export default function App() {
       return;
     }
     await loadCombatEvaluations(id);
+  };
+
+  const loadShares = async (id) => {
+    try {
+      const res = await apiFetch(`/api/combats/${id}/shares`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setShareLists((prev) => ({
+        ...prev,
+        [id]: Array.isArray(data.users) ? data.users : []
+      }));
+    } catch {
+      // ignore
+    }
+  };
+
+  const toggleShares = async (id) => {
+    if (shareLists[id]) {
+      setShareLists((prev) => ({ ...prev, [id]: null }));
+      return;
+    }
+    await loadShares(id);
   };
 
   async function handleRevokeShare(id, userId) {
@@ -663,6 +887,53 @@ export default function App() {
     }
   }
 
+  const loadPenaltyValidations = async (combatIdValue, majority = null) => {
+    const sessions = ["technique", "libre"];
+    const next = { technique: {}, libre: {} };
+    for (const s of sessions) {
+      try {
+        const res = await apiFetch(`/api/combats/${combatIdValue}/penalties?session=${s}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const map = {};
+        (data.penalties || []).forEach((p) => {
+          map[p.penalty_id] = p.is_validated === 1;
+        });
+        next[s] = map;
+      } catch {
+        // ignore
+      }
+    }
+    setPenaltyValidations(next);
+    if (majority) {
+      setPenaltyMajority(majority);
+    }
+  };
+
+  const handleTogglePenalty = (session, penaltyId, checked) => {
+    setPenaltyValidations((prev) => ({
+      ...prev,
+      [session]: { ...prev[session], [penaltyId]: checked }
+    }));
+  };
+
+  const handleSavePenalties = async (session) => {
+    if (!combatId) return;
+    const penalties = Object.entries(penaltyValidations[session] || {}).map(([penalty_id, is_validated]) => ({
+      penalty_id,
+      is_validated
+    }));
+    try {
+      await apiFetch(`/api/combats/${combatId}/penalties`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_type: session, penalties })
+      });
+    } catch {
+      // ignore
+    }
+  };
+
   async function handleFinishNoSave() {
     if (!confirm("Terminer sans sauvegarder ?")) return;
     resetEvaluation();
@@ -682,7 +953,12 @@ export default function App() {
       const res = await apiFetch(`/api/combats/${combatId}/evaluation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: combatName.trim(), evaluation })
+        body: JSON.stringify({
+          name: combatName.trim(),
+          evaluation,
+          session_type: sessionType,
+          artistic_scores: artisticScores
+        })
       });
       if (!res.ok) throw new Error("failed");
       resetEvaluation();
@@ -736,6 +1012,8 @@ export default function App() {
           canEditCombat={canEditCombat}
           onCreateCombat={handleCreateCombat}
           onOpenCombat={handleOpenCombat}
+          onOpenFinalScores={handleOpenFinalScores}
+          onOpenResults={handleOpenResults}
           onEditCombat={handleEditCombat}
           onDeleteCombat={handleDeleteCombat}
           onToggleShares={toggleShares}
@@ -794,6 +1072,7 @@ export default function App() {
           phrases={phrases}
           onRemovePhrase={handleRemove}
           onUpdatePhrase={handleUpdatePhrase}
+          onAdjustActionPenalty={handleAdjustActionPenalty}
           penaltyCounts={penaltyCounts}
           setPenaltyCounts={setPenaltyCounts}
           computed={computed}
@@ -807,6 +1086,34 @@ export default function App() {
           onFinishNoSave={handleFinishNoSave}
           onFinishSave={handleFinishSave}
           isBusy={isBusy}
+          onBack={() => setRoute("combats")}
+          sessionType={sessionType}
+          onSessionChange={handleSessionChange}
+          artisticScores={artisticScores}
+          onArtisticChange={(key, value) =>
+            setArtisticScores((prev) => ({ ...prev, [key]: value }))
+          }
+        />
+      )}
+      {route === "final-scores" && (
+        <FinalScorePage
+          combatName={combatName}
+          combatTechCode={combatTechCode}
+          evaluations={finalEvaluations}
+          penalties={penaltyValidations}
+          penaltyMajority={penaltyMajority}
+          onTogglePenalty={handleTogglePenalty}
+          onSavePenalties={handleSavePenalties}
+          onBack={() => setRoute("combats")}
+        />
+      )}
+      {route === "results" && (
+        <ResultsPage
+          combatName={combatName}
+          combatTechCode={combatTechCode}
+          evaluations={finalEvaluations}
+          penalties={penaltyValidations}
+          penaltyMajority={penaltyMajority}
           onBack={() => setRoute("combats")}
         />
       )}

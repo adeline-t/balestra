@@ -1,4 +1,5 @@
 import React from "react";
+import { FaExclamationTriangle } from "react-icons/fa";
 import { formatNumber } from "../data/rules.js";
 
 export default function Summary({ computed, penaltyTotal, disqualified }) {
@@ -34,7 +35,14 @@ export default function Summary({ computed, penaltyTotal, disqualified }) {
         <div className="final">
           <span>Note technique finale</span>
           <strong>
-            {disqualified ? "DISQUALIFIE" : `${formatNumber(computed.finalScore, 2)} /10`}
+            {disqualified ? (
+              <span className="dq-note">
+                <FaExclamationTriangle className="dq-warning" />
+                <span>Disqualifie</span>
+              </span>
+            ) : (
+              `${formatNumber(computed.finalScore, 2)} /10`
+            )}
           </strong>
         </div>
         </div>

@@ -14,6 +14,7 @@ export default function Penalties({
         <summary>Penalites</summary>
         <div className="penalties">
           {PENALTY_PRESETS.map((p) => {
+            if (p.scope === "action") return null;
             const manualCount = toNumber(penaltyCounts[p.id], 0);
             const autoCount =
               p.id === "g2_temps_combat" ? autoCombatPenalty : 0;
@@ -82,6 +83,25 @@ export default function Penalties({
                   >
                     +
                   </button>
+                  {p.scope === "action" && (
+                    <div className="penalty-quick">
+                      {[1, 2, 3].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          className="ghost"
+                          onClick={() =>
+                            setPenaltyCounts((prev) => ({
+                              ...prev,
+                              [p.id]: toNumber(prev[p.id], 0) + n,
+                            }))
+                          }
+                        >
+                          +{n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -97,6 +117,7 @@ export default function Penalties({
 
 function getTotal(penaltyCounts, autoCombatPenalty) {
   return PENALTY_PRESETS.reduce((sum, p) => {
+    if (p.scope === "action") return sum;
     if (p.value === "DQ") return sum;
     const manualCount = toNumber(penaltyCounts[p.id], 0);
     const autoCount = p.id === "g2_temps_combat" ? autoCombatPenalty : 0;
