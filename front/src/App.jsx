@@ -18,6 +18,7 @@ import {
 } from "./data/rules.js";
 
 const STORAGE_KEY = "balestra_evaluation_v1";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8787";
 
 function buildCsv(phrases, penaltyTotal, computed, meta, penaltyCounts, disqualified) {
   const lines = [];
@@ -68,7 +69,12 @@ export default function App() {
   const [combatTime, setCombatTime] = useState("");
   const [hits, setHits] = useState("");
   const [category, setCategory] = useState("");
+  const [combatName, setCombatName] = useState("");
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [view, setView] = useState("index");
+  const [grids, setGrids] = useState([]);
+  const [isBusy, setIsBusy] = useState(false);
+  const [indexStatus, setIndexStatus] = useState("");
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -81,6 +87,7 @@ export default function App() {
       if (data.combatTime !== undefined) setCombatTime(String(data.combatTime));
       if (data.hits !== undefined) setHits(String(data.hits));
       if (data.category !== undefined) setCategory(String(data.category));
+      if (data.combatName !== undefined) setCombatName(String(data.combatName));
     } catch {
       // ignore corrupted storage
     }
@@ -95,10 +102,29 @@ export default function App() {
         duration,
         combatTime,
         hits,
-        category
+        category,
+        combatName
       })
     );
-  }, [phrases, penaltyCounts, duration, combatTime, hits, category]);
+  }, [phrases, penaltyCounts, duration, combatTime, hits, category, combatName]);
+
+  const loadGrids = async (signal) => {
+    setIndexStatus("");
+    try {
+      const res = await fetch(`${API_BASE}/api/evaluations`, { signal });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      setGrids(Array.isArray(data.evaluations) ? data.evaluations : []);
+    } catch {
+      if (!signal || !signal.aborted) setIndexStatus("Impossible de charger les grilles.");
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadGrids(controller.signal);
+    return () => controller.abort();
+  }, []);
 
   const selectedMode = useMemo(() => getModeFromCategory(category), [category]);
   const timeRule = selectedMode ? TIME_RULES[selectedMode] : null;
@@ -211,14 +237,7 @@ export default function App() {
 
   function handleReset() {
     if (!confirm("Reinitialiser toutes les phrases ?")) return;
-    setPhrases([]);
-    setPenaltyCounts({});
-    setDuration("");
-    setCombatTime("");
-    setHits("");
-    setCategory("");
-    setDifficulty("");
-    setNote("");
+    resetEvaluation();
   }
 
   function handleExport() {
@@ -239,6 +258,125 @@ export default function App() {
     link.click();
 
     URL.revokeObjectURL(url);
+  }
+
+  function resetEvaluation() {
+    setPhrases([]);
+    setPenaltyCounts({});
+    setDuration("");
+    setCombatTime("");
+    setHits("");
+    setCategory("");
+    setCombatName("");
+    setDifficulty("");
+    setNote("");
+  }
+
+  function applyEvaluation(evalData) {
+    const safe = evalData || {};
+    setPhrases(Array.isArray(safe.phrases) ? safe.phrases : []);
+    setPenaltyCounts(safe.penaltyCounts || {});
+    setDuration(safe.duration !== undefined ? String(safe.duration) : "");
+    setCombatTime(safe.combatTime !== undefined ? String(safe.combatTime) : "");
+    setHits(safe.hits !== undefined ? String(safe.hits) : "");
+    setCategory(safe.category !== undefined ? String(safe.category) : "");
+    setCombatName(safe.combatName !== undefined ? String(safe.combatName) : "");
+    setDifficulty("");
+    setNote("");
+  }
+
+  async function handleOpenNew() {
+    resetEvaluation();
+    setView("editor");
+  }
+
+  async function handleOpenGrid(id) {
+    setIsBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/evaluations/${id}`);
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      applyEvaluation(data.evaluation);
+      if (data.name) setCombatName(String(data.name));
+      setView("editor");
+    } catch {
+      setIndexStatus("Impossible de charger cette grille.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleFinishNoSave() {
+    if (!confirm("Terminer sans sauvegarder ?")) return;
+    resetEvaluation();
+    setView("index");
+  }
+
+  async function handleFinishSave() {
+    if (!combatName.trim()) {
+      alert("Le nom du combat est requis pour sauvegarder.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const evaluation = { phrases, penaltyCounts, duration, combatTime, hits, category, combatName };
+      const res = await fetch(`${API_BASE}/api/evaluations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: combatName.trim(), evaluation })
+      });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      await loadGrids();
+      resetEvaluation();
+      setView("index");
+    } catch {
+      alert("Echec sauvegarde.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  if (view === "index") {
+    return (
+      <div className="page">
+        <header className="header">
+          <div>
+            <p className="kicker">Evaluation technique</p>
+            <h1>Grilles sauvegardees</h1>
+          </div>
+          <div className="header-actions">
+            <button type="button" onClick={handleOpenNew} disabled={isBusy}>
+              Nouvelle grille
+            </button>
+          </div>
+        </header>
+
+        {indexStatus && <p className="warning">{indexStatus}</p>}
+
+        <section className="card">
+          {grids.length === 0 ? (
+            <p className="muted">Aucune grille sauvegardee pour le moment.</p>
+          ) : (
+            <div className="grid-list">
+              {grids.map((g) => (
+                <div key={g.id} className="grid-row">
+                  <div>
+                    <strong>{g.name || "Sans nom"}</strong>
+                    <div className="muted">
+                      {g.created_at ? g.created_at.slice(0, 19).replace("T", " ") : ""}
+                    </div>
+                  </div>
+                  <button type="button" className="ghost" onClick={() => handleOpenGrid(g.id)} disabled={isBusy}>
+                    Ouvrir
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    );
   }
 
   return (
@@ -264,10 +402,12 @@ export default function App() {
       <InfoModal isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
 
       <ContextSection
+        combatName={combatName}
         category={category}
         duration={duration}
         combatTime={combatTime}
         hits={hits}
+        onCombatNameChange={setCombatName}
         onCategoryChange={setCategory}
         onDurationChange={setDuration}
         onCombatTimeChange={setCombatTime}
@@ -295,7 +435,14 @@ export default function App() {
         autoCombatPenalty={autoCombatPenalty}
       />
 
-      <Summary computed={computed} penaltyTotal={penaltyTotal} disqualified={disqualified} />
+      <Summary
+        computed={computed}
+        penaltyTotal={penaltyTotal}
+        disqualified={disqualified}
+        onFinishNoSave={handleFinishNoSave}
+        onFinishSave={handleFinishSave}
+        isBusy={isBusy}
+      />
     </div>
   );
 }

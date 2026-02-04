@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS evaluations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

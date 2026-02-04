@@ -1,1 +1,5 @@
 node_modules
+back/.wrangler/tmp
+back/wrangler.toml
+front/dist
+front/vite.config.js

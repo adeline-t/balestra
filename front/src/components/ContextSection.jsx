@@ -2,10 +2,12 @@ import React from "react";
 import { CATEGORY_OPTIONS } from "../data/rules.js";
 
 export default function ContextSection({
+  combatName,
   category,
   duration,
   combatTime,
   hits,
+  onCombatNameChange,
   onCategoryChange,
   onDurationChange,
   onCombatTimeChange,
@@ -21,6 +23,16 @@ export default function ContextSection({
     <section className="card">
       <h2>Contexte du combat</h2>
       <div className="form">
+        <label>
+          Nom du combat
+          <input
+            type="text"
+            value={combatName}
+            onChange={(e) => onCombatNameChange(e.target.value)}
+            placeholder="Ex: Finale senior - Club X"
+          />
+        </label>
+
         <label>
           Categorie
           <select value={category} onChange={(e) => onCategoryChange(e.target.value)}>

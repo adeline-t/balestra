@@ -134,6 +134,13 @@ button:hover {
   box-shadow: 0 10px 20px rgba(15, 61, 62, 0.2);
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 button.ghost {
   background: transparent;
   border: 1px solid #0f3d3e;
@@ -189,6 +196,28 @@ td {
 .summary .final {
   background: #0f3d3e;
   color: white;
+}
+
+.summary-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.grid-list {
+  display: grid;
+  gap: 12px;
+}
+
+.grid-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #faf6f0;
+  border-radius: 12px;
 }
 
 .category-info {
