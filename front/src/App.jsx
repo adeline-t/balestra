@@ -83,6 +83,7 @@ export default function App() {
   const [newFencer, setNewFencer] = useState("");
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [route, setRoute] = useState("home");
+  const [isSandbox, setIsSandbox] = useState(false);
   const [editingCombatId, setEditingCombatId] = useState(null);
   const [combats, setCombats] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
@@ -143,6 +144,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (isSandbox) return;
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -155,7 +157,7 @@ export default function App() {
         combatName
       })
     );
-  }, [phrases, penaltyCounts, duration, combatTime, hits, category, combatName]);
+  }, [phrases, penaltyCounts, duration, combatTime, hits, category, combatName, isSandbox]);
 
   useEffect(() => {
     const raw = localStorage.getItem(AUTH_KEY);
@@ -598,6 +600,21 @@ export default function App() {
     localStorage.removeItem(AUTH_KEY);
   }
 
+  function startSandbox(session) {
+    setIsSandbox(true);
+    resetEvaluation();
+    setCombatId(null);
+    setCombatName("");
+    setCombatTechCode("");
+    setSessionType(session);
+    localStorage.removeItem(STORAGE_KEY);
+    setRoute("evaluation");
+  }
+
+  function handleExportPdf() {
+    window.print();
+  }
+
   async function handleChangePassword(newPassword) {
     setAccountStatus("");
     setIsBusy(true);
@@ -672,6 +689,7 @@ export default function App() {
   async function loadEvaluationForSession(combat, nextSession) {
     setIsBusy(true);
     try {
+      setIsSandbox(false);
       const res = await apiFetch(`/api/combats/${combat.id}/evaluation?session=${nextSession}`);
       if (!res.ok) throw new Error("failed");
       const data = await res.json();
@@ -1029,7 +1047,12 @@ export default function App() {
       onLogout={handleLogout}
     >
       {route === "home" && (
-        <HomePage onCreateCombat={handleCreateCombat} onGoCombats={() => setRoute("combats")} />
+        <HomePage
+          onCreateCombat={handleCreateCombat}
+          onGoCombats={() => setRoute("combats")}
+          onStartSandboxTechnique={() => startSandbox("technique")}
+          onStartSandboxLibre={() => startSandbox("libre")}
+        />
       )}
       {route === "account" && (
         <AccountPage
@@ -1123,16 +1146,19 @@ export default function App() {
           onCloseInfo={() => setIsInfoOpen(false)}
           onReset={handleReset}
           onExport={handleExport}
+          onExportPdf={handleExportPdf}
           onFinishNoSave={handleFinishNoSave}
           onFinishSave={handleFinishSave}
           isBusy={isBusy}
-          onBack={() => setRoute("combats")}
+          onBack={() => setRoute(isSandbox ? "home" : "combats")}
           sessionType={sessionType}
           onSessionChange={handleSessionChange}
           artisticScores={artisticScores}
           onArtisticChange={(key, value) =>
             setArtisticScores((prev) => ({ ...prev, [key]: value }))
           }
+          onCombatNameChange={setCombatName}
+          isSandbox={isSandbox}
         />
       )}
       {route === "final-scores" && (

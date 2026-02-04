@@ -1,6 +1,11 @@
 import React from "react";
 
-export default function HomePage({ onCreateCombat, onGoCombats }) {
+export default function HomePage({
+  onCreateCombat,
+  onGoCombats,
+  onStartSandboxTechnique,
+  onStartSandboxLibre
+}) {
   return (
     <div className="page">
       <header className="header">
@@ -38,6 +43,21 @@ export default function HomePage({ onCreateCombat, onGoCombats }) {
               Acceder au depot GitHub
             </a>
           </p>
+        </div>
+      </section>
+      <section className="card">
+        <h2>Notation rapide (hors combat)</h2>
+        <p className="muted">
+          Pour faire une notation non sauvegardee, sans rattachement a un combat. Vous pourrez
+          uniquement exporter en CSV ou PDF.
+        </p>
+        <div className="finish-actions">
+          <button type="button" onClick={onStartSandboxTechnique}>
+            Noter programme technique
+          </button>
+          <button type="button" className="ghost" onClick={onStartSandboxLibre}>
+            Noter programme libre
+          </button>
         </div>
       </section>
     </div>

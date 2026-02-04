@@ -23,6 +23,7 @@ export default function EvaluationPage({
   duration,
   combatTime,
   hits,
+  onCombatNameChange,
   onCategoryChange,
   onDurationChange,
   onCombatTimeChange,
@@ -51,6 +52,7 @@ export default function EvaluationPage({
   onCloseInfo,
   onReset,
   onExport,
+  onExportPdf,
   onFinishNoSave,
   onFinishSave,
   isBusy,
@@ -58,7 +60,8 @@ export default function EvaluationPage({
   sessionType,
   onSessionChange,
   artisticScores,
-  onArtisticChange
+  onArtisticChange,
+  isSandbox
 }) {
   return (
     <div className="page">
@@ -104,6 +107,9 @@ export default function EvaluationPage({
           <button type="button" onClick={onExport}>
             Export CSV
           </button>
+          <button type="button" onClick={onExportPdf}>
+            Export PDF
+          </button>
         </div>
       </header>
 
@@ -113,6 +119,11 @@ export default function EvaluationPage({
             ? "Programme Technique · notation technique uniquement."
             : "Programme Libre · notation technique + artistique."}
         </p>
+        {isSandbox && (
+          <p className="warning">
+            Mode hors combat : cette notation ne peut pas etre sauvegardee. Export CSV/PDF uniquement.
+          </p>
+        )}
       </section>
 
       <InfoModal isOpen={isInfoOpen} onClose={onCloseInfo} />
@@ -123,7 +134,7 @@ export default function EvaluationPage({
         duration={duration}
         combatTime={combatTime}
         hits={hits}
-        onCombatNameChange={() => {}}
+        onCombatNameChange={onCombatNameChange}
         onCategoryChange={onCategoryChange}
         onDurationChange={onDurationChange}
         onCombatTimeChange={onCombatTimeChange}
@@ -134,8 +145,8 @@ export default function EvaluationPage({
         combatSeconds={combatSeconds}
         perfPenaltyCount={perfPenaltyCount}
         combatPenaltyAuto={autoCombatPenalty}
-        combatNameLocked
-        categoryLocked
+        combatNameLocked={!isSandbox}
+        categoryLocked={!isSandbox}
       />
 
       <PhraseForm
@@ -186,7 +197,12 @@ export default function EvaluationPage({
         <button type="button" className="ghost" onClick={onFinishNoSave} disabled={isBusy}>
           Terminer sans sauvegarder
         </button>
-        <button type="button" className="primary" onClick={onFinishSave} disabled={isBusy}>
+        <button
+          type="button"
+          className="primary"
+          onClick={onFinishSave}
+          disabled={isBusy || isSandbox}
+        >
           Terminer et sauvegarder
         </button>
       </div>
