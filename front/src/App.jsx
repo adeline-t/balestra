@@ -15,14 +15,21 @@ import {
   getModeFromCategory,
   parseMmss,
   toNumber,
-  CATEGORY_OPTIONS
+  CATEGORY_OPTIONS,
 } from "./data/rules.js";
 
 const STORAGE_KEY = "balestra_evaluation_v1";
 const AUTH_KEY = "balestra_auth_v1";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8787";
 
-function buildCsv(phrases, penaltyTotal, computed, meta, penaltyCounts, disqualified) {
+function buildCsv(
+  phrases,
+  penaltyTotal,
+  computed,
+  meta,
+  penaltyCounts,
+  disqualified,
+) {
   const lines = [];
   lines.push(["meta", "categorie", getCategoryLabel(meta.category || "")]);
   lines.push(["meta", "duree_mmss", meta.duration || ""]);
@@ -30,20 +37,48 @@ function buildCsv(phrases, penaltyTotal, computed, meta, penaltyCounts, disquali
   lines.push(["meta", "nombre_coups", meta.hits || ""]);
   lines.push(["meta", "disqualifie", disqualified ? "oui" : "non"]);
   lines.push([]);
-  lines.push(["index", "difficulte", "coefficient", "note_sur_5", "note_ponderee"]);
+  lines.push([
+    "index",
+    "difficulte",
+    "coefficient",
+    "note_sur_5",
+    "note_ponderee",
+  ]);
 
   phrases.forEach((p, index) => {
-    lines.push([index + 1, p.difficulty, p.coef, p.note, formatNumber(p.note * p.coef, 2)]);
+    lines.push([
+      index + 1,
+      p.difficulty,
+      p.coef,
+      p.note,
+      formatNumber(p.note * p.coef, 2),
+    ]);
   });
 
   lines.push([]);
   lines.push(["resume", "moyenne_simple", formatNumber(computed.avgSimple, 2)]);
-  lines.push(["resume", "moyenne_complexe", formatNumber(computed.avgComplexe, 2)]);
-  lines.push(["resume", "moyenne_avancee", formatNumber(computed.avgAvancee, 2)]);
-  lines.push(["resume", "moyenne_ponderee_sur_5", formatNumber(computed.avgWeighted, 2)]);
+  lines.push([
+    "resume",
+    "moyenne_complexe",
+    formatNumber(computed.avgComplexe, 2),
+  ]);
+  lines.push([
+    "resume",
+    "moyenne_avancee",
+    formatNumber(computed.avgAvancee, 2),
+  ]);
+  lines.push([
+    "resume",
+    "moyenne_ponderee_sur_5",
+    formatNumber(computed.avgWeighted, 2),
+  ]);
   lines.push(["resume", "note_sur_10", formatNumber(computed.score10, 2)]);
   lines.push(["resume", "penalites", formatNumber(penaltyTotal, 2)]);
-  lines.push(["resume", "note_finale", disqualified ? "DISQUALIFIE" : formatNumber(computed.finalScore, 2)]);
+  lines.push([
+    "resume",
+    "note_finale",
+    disqualified ? "DISQUALIFIE" : formatNumber(computed.finalScore, 2),
+  ]);
   lines.push([]);
   lines.push(["penalites", "type", "occurrences", "valeur", "total"]);
   PENALTY_PRESETS.forEach((p) => {
@@ -53,12 +88,14 @@ function buildCsv(phrases, penaltyTotal, computed, meta, penaltyCounts, disquali
       p.label,
       count,
       p.value,
-      p.value === "DQ" ? "DQ" : formatNumber(count * p.value, 2)
+      p.value === "DQ" ? "DQ" : formatNumber(count * p.value, 2),
     ]);
   });
 
   return lines
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+    )
     .join("\n");
 }
 
@@ -81,6 +118,7 @@ export default function App() {
   const [newFencer, setNewFencer] = useState("");
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [view, setView] = useState("index");
+  const [editingCombatId, setEditingCombatId] = useState(null);
   const [combats, setCombats] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
   const [indexStatus, setIndexStatus] = useState("");
@@ -129,10 +167,18 @@ export default function App() {
         combatTime,
         hits,
         category,
-        combatName
-      })
+        combatName,
+      }),
     );
-  }, [phrases, penaltyCounts, duration, combatTime, hits, category, combatName]);
+  }, [
+    phrases,
+    penaltyCounts,
+    duration,
+    combatTime,
+    hits,
+    category,
+    combatName,
+  ]);
 
   useEffect(() => {
     const raw = localStorage.getItem(AUTH_KEY);
@@ -154,7 +200,10 @@ export default function App() {
         if (!res.ok) throw new Error("invalid");
         const data = await res.json();
         setCurrentUser(data.user);
-        localStorage.setItem(AUTH_KEY, JSON.stringify({ token: authToken, user: data.user }));
+        localStorage.setItem(
+          AUTH_KEY,
+          JSON.stringify({ token: authToken, user: data.user }),
+        );
       } catch {
         setAuthToken("");
         setCurrentUser(null);
@@ -172,7 +221,8 @@ export default function App() {
       const data = await res.json();
       setCombats(Array.isArray(data.combats) ? data.combats : []);
     } catch {
-      if (!signal || !signal.aborted) setIndexStatus("Impossible de charger les combats.");
+      if (!signal || !signal.aborted)
+        setIndexStatus("Impossible de charger les combats.");
     }
   };
 
@@ -219,7 +269,8 @@ export default function App() {
   }, [timeRule]);
 
   const autoCombatPenalty = useMemo(() => {
-    if (!timeRule || combatSeconds === null || combatMinSeconds === null) return 0;
+    if (!timeRule || combatSeconds === null || combatMinSeconds === null)
+      return 0;
     return combatSeconds < combatMinSeconds - 10 ? 1 : 0;
   }, [timeRule, combatSeconds, combatMinSeconds]);
 
@@ -234,7 +285,8 @@ export default function App() {
 
   const effectivePenaltyCounts = useMemo(() => {
     const next = { ...penaltyCounts };
-    next.g2_temps_combat = toNumber(next.g2_temps_combat, 0) + autoCombatPenalty;
+    next.g2_temps_combat =
+      toNumber(next.g2_temps_combat, 0) + autoCombatPenalty;
     return next;
   }, [penaltyCounts, autoCombatPenalty]);
 
@@ -248,7 +300,7 @@ export default function App() {
 
   const disqualified = useMemo(() => {
     return PENALTY_PRESETS.some(
-      (p) => p.value === "DQ" && toNumber(effectivePenaltyCounts[p.id], 0) > 0
+      (p) => p.value === "DQ" && toNumber(effectivePenaltyCounts[p.id], 0) > 0,
     );
   }, [effectivePenaltyCounts]);
 
@@ -258,7 +310,9 @@ export default function App() {
     const avancee = phrases.filter((p) => p.difficulty === "avancee");
 
     const avg = (list) =>
-      list.length === 0 ? 0 : list.reduce((sum, p) => sum + p.note, 0) / list.length;
+      list.length === 0
+        ? 0
+        : list.reduce((sum, p) => sum + p.note, 0) / list.length;
 
     const avgSimple = avg(simple);
     const avgComplexe = avg(complexe);
@@ -275,7 +329,7 @@ export default function App() {
       avgAvancee,
       avgWeighted,
       score10,
-      finalScore
+      finalScore,
     };
   }, [phrases, penaltyTotal]);
 
@@ -289,8 +343,8 @@ export default function App() {
       {
         difficulty: nextDifficulty,
         coef,
-        note: noteValue
-      }
+        note: noteValue,
+      },
     ]);
 
     setDifficulty("");
@@ -329,10 +383,10 @@ export default function App() {
               ...p,
               difficulty: nextDifficulty,
               coef,
-              note: noteValue
+              note: noteValue,
             }
-          : p
-      )
+          : p,
+      ),
     );
   }
 
@@ -348,7 +402,7 @@ export default function App() {
       computed,
       { category, duration, combatTime, hits },
       effectivePenaltyCounts,
-      disqualified
+      disqualified,
     );
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -392,7 +446,10 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: authEmail.trim().toLowerCase(), password: authPassword })
+        body: JSON.stringify({
+          email: authEmail.trim().toLowerCase(),
+          password: authPassword,
+        }),
       });
       if (!res.ok) {
         setAuthError("Identifiants invalides.");
@@ -401,7 +458,10 @@ export default function App() {
       const data = await res.json();
       setAuthToken(data.token);
       setCurrentUser(data.user);
-      localStorage.setItem(AUTH_KEY, JSON.stringify({ token: data.token, user: data.user }));
+      localStorage.setItem(
+        AUTH_KEY,
+        JSON.stringify({ token: data.token, user: data.user }),
+      );
       setAuthEmail("");
       setAuthPassword("");
       setView("index");
@@ -431,7 +491,10 @@ export default function App() {
       const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newUserEmail.trim(), password: newUserPassword })
+        body: JSON.stringify({
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+        }),
       });
       if (!res.ok) throw new Error("failed");
       setNewUserEmail("");
@@ -453,7 +516,7 @@ export default function App() {
       const res = await apiFetch(`/api/users/${userId}/password`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: next.trim() })
+        body: JSON.stringify({ password: next.trim() }),
       });
       if (!res.ok) throw new Error("failed");
     } catch {
@@ -472,6 +535,7 @@ export default function App() {
     setCombatDescription("");
     setCombatTechCode("");
     setNewFencer("");
+    setEditingCombatId(null);
     setView("combat-create");
   }
 
@@ -490,7 +554,9 @@ export default function App() {
       setCombatCategory(combat.category || "");
       setCombatClub(combat.club || "");
       setCombatFencers(
-        typeof combat.fencers === "string" ? JSON.parse(combat.fencers || "[]") : combat.fencers || []
+        typeof combat.fencers === "string"
+          ? JSON.parse(combat.fencers || "[]")
+          : combat.fencers || [],
       );
       setCombatDescription(combat.description || "");
       setCombatTechCode(combat.tech_code || "");
@@ -503,37 +569,21 @@ export default function App() {
     }
   }
 
-  async function handleRenameCombat(
-    id,
-    currentName,
-    currentCategory,
-    currentClub,
-    currentFencers,
-    currentDescription
-  ) {
-    const nextName = prompt("Nouveau nom du combat ?", currentName || "");
-    if (!nextName || !nextName.trim()) return;
-    setIsBusy(true);
-    try {
-      const res = await apiFetch(`/api/combats/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: nextName.trim(),
-          category: currentCategory || "",
-          club: currentClub || "",
-          description: currentDescription || "",
-          fencers:
-            typeof currentFencers === "string" ? JSON.parse(currentFencers || "[]") : currentFencers || []
-        })
-      });
-      if (!res.ok) throw new Error("failed");
-      await loadCombats();
-    } catch {
-      setIndexStatus("Impossible de renommer ce combat.");
-    } finally {
-      setIsBusy(false);
-    }
+  async function handleEditCombat(combat) {
+    setCombatId(combat.id);
+    setCombatName(combat.name || "");
+    setCombatCategory(combat.category || "");
+    setCombatClub(combat.club || "");
+    setCombatFencers(
+      typeof combat.fencers === "string"
+        ? JSON.parse(combat.fencers || "[]")
+        : combat.fencers || []
+    );
+    setCombatDescription(combat.description || "");
+    setCombatTechCode(combat.tech_code || "");
+    setNewFencer("");
+    setEditingCombatId(combat.id);
+    setView("combat-create");
   }
 
   async function handleDeleteCombat(id) {
@@ -541,7 +591,7 @@ export default function App() {
     setIsBusy(true);
     try {
       const res = await apiFetch(`/api/combats/${id}`, {
-        method: "DELETE"
+        method: "DELETE",
       });
       if (!res.ok) throw new Error("failed");
       await loadCombats();
@@ -560,7 +610,7 @@ export default function App() {
       const res = await apiFetch(`/api/combats/${id}/share`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify({ userId }),
       });
       if (!res.ok) throw new Error("failed");
       setShareTargets((prev) => ({ ...prev, [id]: "" }));
@@ -579,7 +629,7 @@ export default function App() {
       const data = await res.json();
       setShareLists((prev) => ({
         ...prev,
-        [id]: Array.isArray(data.users) ? data.users : []
+        [id]: Array.isArray(data.users) ? data.users : [],
       }));
     } catch {
       // ignore
@@ -597,7 +647,9 @@ export default function App() {
   async function handleRevokeShare(id, userId) {
     setIsBusy(true);
     try {
-      const res = await apiFetch(`/api/combats/${id}/share/${userId}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/combats/${id}/share/${userId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error("failed");
       await loadShares(id);
     } catch {
@@ -622,11 +674,19 @@ export default function App() {
     }
     setIsBusy(true);
     try {
-      const evaluation = { phrases, penaltyCounts, duration, combatTime, hits, category, combatName };
+      const evaluation = {
+        phrases,
+        penaltyCounts,
+        duration,
+        combatTime,
+        hits,
+        category,
+        combatName,
+      };
       const res = await apiFetch(`/api/combats/${combatId}/evaluation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: combatName.trim(), evaluation })
+        body: JSON.stringify({ name: combatName.trim(), evaluation }),
       });
       if (!res.ok) throw new Error("failed");
       resetEvaluation();
@@ -636,6 +696,50 @@ export default function App() {
       await loadCombats();
     } catch {
       alert("Echec sauvegarde.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  function addFencer() {
+    if (!newFencer.trim()) return;
+    setCombatFencers((prev) => [...prev, newFencer.trim()]);
+    setNewFencer("");
+  }
+
+  function removeFencer(index) {
+    setCombatFencers((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleCreateCombatSubmit(event) {
+    event.preventDefault();
+    if (!combatName.trim() || !combatCategory.trim()) {
+      setIndexStatus("Nom et categorie obligatoires.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const payload = {
+        name: combatName.trim(),
+        category: combatCategory.trim(),
+        club: combatClub.trim(),
+        description: combatDescription.trim(),
+        fencers: combatFencers
+      };
+      const res = await apiFetch(
+        editingCombatId ? `/api/combats/${editingCombatId}` : "/api/combats",
+        {
+          method: editingCombatId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      if (!res.ok) throw new Error("failed");
+      await loadCombats();
+      setView("index");
+      setEditingCombatId(null);
+    } catch {
+      setIndexStatus(editingCombatId ? "Impossible de modifier le combat." : "Impossible de creer le combat.");
     } finally {
       setIsBusy(false);
     }
@@ -676,7 +780,9 @@ export default function App() {
             </button>
           </form>
           {authError && <p className="warning">{authError}</p>}
-          <p className="muted">Superadmin par defaut: admin@balestra.local / escrime</p>
+          <p className="muted">
+            Superadmin par defaut: admin@balestra.local / escrime
+          </p>
         </section>
       </div>
     );
@@ -691,7 +797,11 @@ export default function App() {
             <h1>Combats / spectacles</h1>
           </div>
           <div className="header-actions">
-            <button type="button" onClick={handleCreateCombat} disabled={isBusy}>
+            <button
+              type="button"
+              onClick={handleCreateCombat}
+              disabled={isBusy}
+            >
               Nouveau combat
             </button>
             <button type="button" className="ghost" onClick={handleLogout}>
@@ -708,16 +818,26 @@ export default function App() {
           ) : (
             <div className="grid-list">
               {combats.map((c) => {
-                const canEdit = currentUser?.role === "superadmin" || c.owner_user_id === currentUser?.id;
+                const canEdit =
+                  currentUser?.role === "superadmin" ||
+                  c.owner_user_id === currentUser?.id;
                 return (
                   <div key={c.id} className="grid-row">
                     <div>
                       <strong>{c.name || "Sans nom"}</strong>
                       <div className="muted">
-                        {c.created_at ? c.created_at.slice(0, 19).replace("T", " ") : ""}
+                        {c.created_at
+                          ? c.created_at.slice(0, 19).replace("T", " ")
+                          : ""}
                       </div>
-                      {c.tech_code ? <div className="muted">Code: {c.tech_code}</div> : null}
-                      {c.is_shared ? <span className="badge badge-outline">Partage avec moi</span> : null}
+                      {c.tech_code ? (
+                        <div className="muted">Code: {c.tech_code}</div>
+                      ) : null}
+                      {c.is_shared ? (
+                        <span className="badge badge-outline">
+                          Partage avec moi
+                        </span>
+                      ) : null}
                     </div>
                     <div className="grid-actions">
                       <button
@@ -733,19 +853,10 @@ export default function App() {
                           <button
                             type="button"
                             className="ghost"
-                            onClick={() =>
-                              handleRenameCombat(
-                                c.id,
-                                c.name,
-                                c.category,
-                                c.club,
-                                c.fencers,
-                                c.description
-                              )
-                            }
+                            onClick={() => handleEditCombat(c)}
                             disabled={isBusy}
                           >
-                            Renommer
+                            Editer
                           </button>
                           <button
                             type="button"
@@ -761,13 +872,18 @@ export default function App() {
                             onClick={() => toggleShares(c.id)}
                             disabled={isBusy}
                           >
-                            {shareLists[c.id] ? "Masquer partages" : "Voir partages"}
+                            {shareLists[c.id]
+                              ? "Masquer partages"
+                              : "Voir partages"}
                           </button>
                           <div className="share-row">
                             <select
                               value={shareTargets[c.id] || ""}
                               onChange={(e) =>
-                                setShareTargets((prev) => ({ ...prev, [c.id]: e.target.value }))
+                                setShareTargets((prev) => ({
+                                  ...prev,
+                                  [c.id]: e.target.value,
+                                }))
                               }
                             >
                               <option value="">Partager avec...</option>
@@ -786,22 +902,25 @@ export default function App() {
                               Partager
                             </button>
                           </div>
-                          {Array.isArray(shareLists[c.id]) && shareLists[c.id].length > 0 && (
-                            <div className="share-list">
-                              {shareLists[c.id].map((u) => (
-                                <div key={u.id} className="share-pill">
-                                  <span>{u.email}</span>
-                                  <button
-                                    type="button"
-                                    className="link"
-                                    onClick={() => handleRevokeShare(c.id, u.id)}
-                                  >
-                                    Retirer
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          {Array.isArray(shareLists[c.id]) &&
+                            shareLists[c.id].length > 0 && (
+                              <div className="share-list">
+                                {shareLists[c.id].map((u) => (
+                                  <div key={u.id} className="share-pill">
+                                    <span>{u.email}</span>
+                                    <button
+                                      type="button"
+                                      className="link"
+                                      onClick={() =>
+                                        handleRevokeShare(c.id, u.id)
+                                      }
+                                    >
+                                      Retirer
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                         </>
                       )}
                     </div>
@@ -870,10 +989,15 @@ export default function App() {
         <header className="header">
           <div>
             <p className="kicker">Evaluation technique</p>
-            <h1>Nouveau combat</h1>
+            <h1>{editingCombatId ? "Modifier le combat" : "Nouveau combat"}</h1>
           </div>
           <div className="header-actions">
-            <button className="ghost" type="button" onClick={() => setView("index")} disabled={isBusy}>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => setView("index")}
+              disabled={isBusy}
+            >
               Retour a l'index
             </button>
           </div>
@@ -882,73 +1006,86 @@ export default function App() {
         {indexStatus && <p className="warning">{indexStatus}</p>}
 
         <section className="card">
-          <form className="form" onSubmit={handleCreateCombatSubmit}>
-            <label>
-              Nom du combat
-              <input
-                type="text"
-                value={combatName}
-                onChange={(e) => setCombatName(e.target.value)}
-                placeholder="Ex: Finale senior - Club X"
-              />
-            </label>
-            <label>
-              Categorie
-              <select value={combatCategory} onChange={(e) => setCombatCategory(e.target.value)}>
-                <option value="">Selectionner</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Club d'escrime
-              <input
-                type="text"
-                value={combatClub}
-                onChange={(e) => setCombatClub(e.target.value)}
-                placeholder="Ex: Cercle d'escrime"
-              />
-            </label>
-            <label>
-              Description
-              <textarea
-                rows="3"
-                value={combatDescription}
-                onChange={(e) => setCombatDescription(e.target.value)}
-                placeholder="Infos utiles, theme, contexte..."
-              />
-            </label>
-            <label>
-              Escrimeurs
-              <div className="inline-field">
+          <form className="form-column" onSubmit={handleCreateCombatSubmit}>
+            <div className="form-group">
+              <label>
+                Nom du combat
                 <input
                   type="text"
-                  value={newFencer}
-                  onChange={(e) => setNewFencer(e.target.value)}
-                  placeholder="Nom de l'escrimeur"
+                  value={combatName}
+                  onChange={(e) => setCombatName(e.target.value)}
+                  placeholder="Ex: La paix des ménages"
                 />
-                <button type="button" className="ghost" onClick={addFencer}>
-                  Ajouter
-                </button>
-              </div>
-              {combatFencers.length > 0 && (
-                <div className="fencer-list">
-                  {combatFencers.map((f, idx) => (
-                    <div key={`${f}-${idx}`} className="fencer-pill">
-                      <span>{f}</span>
-                      <button type="button" className="link" onClick={() => removeFencer(idx)}>
-                        Retirer
-                      </button>
-                    </div>
+              </label>
+              <label>
+                Categorie
+                <select
+                  value={combatCategory}
+                  onChange={(e) => setCombatCategory(e.target.value)}
+                >
+                  <option value="">Selectionner</option>
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
                   ))}
+                </select>
+              </label>
+              <label>
+                Club d'escrime
+                <input
+                  type="text"
+                  value={combatClub}
+                  onChange={(e) => setCombatClub(e.target.value)}
+                  placeholder="Ex: Cercle d'escrime"
+                />
+              </label>
+            </div>
+            <div className="form-group">
+              <label>
+                Description
+                <textarea
+                  rows="4"
+                  value={combatDescription}
+                  onChange={(e) => setCombatDescription(e.target.value)}
+                  placeholder="Infos utiles, theme, contexte..."
+                />
+              </label>
+            </div>
+            <div className="form-group">
+              <label>
+                Escrimeurs
+                <div className="inline-field">
+                  <input
+                    type="text"
+                    value={newFencer}
+                    onChange={(e) => setNewFencer(e.target.value)}
+                    placeholder="Nom de l'escrimeur"
+                  />
+                  <button type="button" className="ghost" onClick={addFencer}>
+                    Ajouter
+                  </button>
                 </div>
-              )}
-            </label>
+                {combatFencers.length > 0 && (
+                  <div className="fencer-list">
+                    {combatFencers.map((f, idx) => (
+                      <div key={`${f}-${idx}`} className="fencer-pill">
+                        <span>{f}</span>
+                        <button
+                          type="button"
+                          className="link"
+                          onClick={() => removeFencer(idx)}
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </label>
+            </div>
             <button type="submit" disabled={isBusy}>
-              Creer le combat
+              {editingCombatId ? "Enregistrer les modifications" : "Creer le combat"}
             </button>
           </form>
         </section>
@@ -988,10 +1125,19 @@ export default function App() {
           </div>
         </div>
         <div className="header-actions">
-          <button className="ghost" type="button" onClick={() => setView("index")} disabled={isBusy}>
+          <button
+            className="ghost"
+            type="button"
+            onClick={() => setView("index")}
+            disabled={isBusy}
+          >
             Retour a l'index
           </button>
-          <button className="ghost" type="button" onClick={() => setIsInfoOpen(true)}>
+          <button
+            className="ghost"
+            type="button"
+            onClick={() => setIsInfoOpen(true)}
+          >
             Infos notation
           </button>
           <button className="ghost" type="button" onClick={handleReset}>
@@ -1036,7 +1182,11 @@ export default function App() {
         onNoteClick={handleNoteClick}
       />
 
-      <PhraseTable phrases={phrases} onRemove={handleRemove} onUpdate={handleUpdatePhrase} />
+      <PhraseTable
+        phrases={phrases}
+        onRemove={handleRemove}
+        onUpdate={handleUpdatePhrase}
+      />
 
       <Penalties
         penaltyCounts={penaltyCounts}
@@ -1044,54 +1194,30 @@ export default function App() {
         autoCombatPenalty={autoCombatPenalty}
       />
 
-      <Summary computed={computed} penaltyTotal={penaltyTotal} disqualified={disqualified} />
+      <Summary
+        computed={computed}
+        penaltyTotal={penaltyTotal}
+        disqualified={disqualified}
+      />
 
       <div className="finish-actions">
-        <button type="button" className="ghost" onClick={handleFinishNoSave} disabled={isBusy}>
+        <button
+          type="button"
+          className="ghost"
+          onClick={handleFinishNoSave}
+          disabled={isBusy}
+        >
           Terminer sans sauvegarder
         </button>
-        <button type="button" className="primary" onClick={handleFinishSave} disabled={isBusy}>
+        <button
+          type="button"
+          className="primary"
+          onClick={handleFinishSave}
+          disabled={isBusy}
+        >
           Terminer et sauvegarder
         </button>
       </div>
     </div>
   );
 }
-  function addFencer() {
-    if (!newFencer.trim()) return;
-    setCombatFencers((prev) => [...prev, newFencer.trim()]);
-    setNewFencer("");
-  }
-
-  function removeFencer(index) {
-    setCombatFencers((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  async function handleCreateCombatSubmit(event) {
-    event.preventDefault();
-    if (!combatName.trim() || !combatCategory.trim()) {
-      setIndexStatus("Nom et categorie obligatoires.");
-      return;
-    }
-    setIsBusy(true);
-    try {
-      const res = await apiFetch("/api/combats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: combatName.trim(),
-          category: combatCategory.trim(),
-          club: combatClub.trim(),
-          description: combatDescription.trim(),
-          fencers: combatFencers
-        })
-      });
-      if (!res.ok) throw new Error("failed");
-      await loadCombats();
-      setView("index");
-    } catch {
-      setIndexStatus("Impossible de creer le combat.");
-    } finally {
-      setIsBusy(false);
-    }
-  }

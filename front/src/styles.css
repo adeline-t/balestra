@@ -234,6 +234,7 @@ textarea {
   font-family: inherit;
   resize: vertical;
   min-height: 96px;
+  min-width: 400px;
 }
 
 button {
