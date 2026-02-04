@@ -679,8 +679,12 @@ export default function App() {
     }
   }
 
-  async function handleOpenCombat(combat) {
+  async function handleOpenCombatTechnique(combat) {
     await loadEvaluationForSession(combat, "technique");
+  }
+
+  async function handleOpenCombatLibre(combat) {
+    await loadEvaluationForSession(combat, "libre");
   }
 
   async function handleSessionChange(nextSession) {
@@ -708,13 +712,17 @@ export default function App() {
       if (!res.ok) throw new Error("failed");
       const data = await res.json();
       const list = Array.isArray(data.evaluations) ? data.evaluations : [];
-      const computedList = list.map((e) => ({
-        ...e,
-        computed: computeEvaluation(
-          e.payload ? safeJson(e.payload) : null,
-          e.artistic_scores ? safeJson(e.artistic_scores) : null
-        )
-      }));
+      const computedList = list.map((e) => {
+        const evaluation = e.payload ? safeJson(e.payload) : null;
+        return {
+          ...e,
+          evaluation,
+          computed: computeEvaluation(
+            evaluation,
+            e.artistic_scores ? safeJson(e.artistic_scores) : null
+          )
+        };
+      });
       const majority = computePenaltyMajority(list);
       setPenaltyMajority(majority);
       setFinalEvaluations(computedList);
@@ -917,20 +925,23 @@ export default function App() {
     }));
   };
 
-  const handleSavePenalties = async (session) => {
+  const handleSavePenalties = async (session, nextMap) => {
     if (!combatId) return;
-    const penalties = Object.entries(penaltyValidations[session] || {}).map(([penalty_id, is_validated]) => ({
+    const source = nextMap || penaltyValidations[session] || {};
+    const penalties = Object.entries(source).map(([penalty_id, is_validated]) => ({
       penalty_id,
       is_validated
     }));
     try {
-      await apiFetch(`/api/combats/${combatId}/penalties`, {
+      const res = await apiFetch(`/api/combats/${combatId}/penalties`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_type: session, penalties })
       });
+      if (!res.ok) return false;
+      return true;
     } catch {
-      // ignore
+      return false;
     }
   };
 
@@ -1011,7 +1022,8 @@ export default function App() {
           isBusy={isBusy}
           canEditCombat={canEditCombat}
           onCreateCombat={handleCreateCombat}
-          onOpenCombat={handleOpenCombat}
+          onOpenCombatTechnique={handleOpenCombatTechnique}
+          onOpenCombatLibre={handleOpenCombatLibre}
           onOpenFinalScores={handleOpenFinalScores}
           onOpenResults={handleOpenResults}
           onEditCombat={handleEditCombat}

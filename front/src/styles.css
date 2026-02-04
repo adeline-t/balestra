@@ -601,6 +601,18 @@ th {
   font-weight: 800;
 }
 
+.penalty-save {
+  margin-top: 12px;
+}
+
+.penalty-save:disabled {
+  background: #f1f3f7;
+  color: #9aa2af;
+  border-color: #d7dde7;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .category-info {
   margin-top: 8px;
   display: grid;

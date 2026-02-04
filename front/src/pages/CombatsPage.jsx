@@ -10,7 +10,8 @@ export default function CombatsPage({
   isBusy,
   canEditCombat,
   onCreateCombat,
-  onOpenCombat,
+  onOpenCombatTechnique,
+  onOpenCombatLibre,
   onOpenFinalScores,
   onOpenResults,
   onEditCombat,
@@ -62,10 +63,18 @@ export default function CombatsPage({
                         <button
                           type="button"
                           className="ghost"
-                          onClick={() => onOpenCombat(c)}
+                          onClick={() => onOpenCombatTechnique(c)}
                           disabled={isBusy}
                         >
-                          Noter
+                          Noter programme technique
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => onOpenCombatLibre(c)}
+                          disabled={isBusy}
+                        >
+                          Noter programme libre
                         </button>
                         <button
                           type="button"

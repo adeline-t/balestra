@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { formatNumber, PENALTY_PRESETS } from "../data/rules.js";
 
 const ART_KEYS = [
@@ -32,6 +32,9 @@ export default function FinalScorePage({
   onBack
 }) {
   const [sessionTab, setSessionTab] = useState("technique");
+  const [baseline, setBaseline] = useState("{}");
+  const [dirty, setDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
 
   const bySession = useMemo(() => {
     const grouped = { technique: [], libre: [] };
@@ -55,10 +58,108 @@ export default function FinalScorePage({
 
   const penaltyMap = penalties[sessionTab] || {};
   const majorityMap = penaltyMajority[sessionTab] || {};
+  const globalPenalties = useMemo(
+    () => PENALTY_PRESETS.filter((p) => p.scope !== "action"),
+    []
+  );
+  const hasChanges = useMemo(
+    () => baseline !== JSON.stringify(penaltyMap || {}),
+    [baseline, penaltyMap]
+  );
+
+  useEffect(() => {
+    setDirty(false);
+    setSaveStatus("");
+    setBaseline(JSON.stringify(penaltyMap || {}));
+  }, [sessionTab]);
+
+  useEffect(() => {
+    if (!dirty) {
+      setBaseline(JSON.stringify(penaltyMap || {}));
+    }
+  }, [penaltyMap, dirty]);
 
   const effectivePenalty = (id) => {
     if (Object.prototype.hasOwnProperty.call(penaltyMap, id)) return penaltyMap[id];
     return Boolean(majorityMap[id]);
+  };
+
+  const actionPenaltyRows = useMemo(() => {
+    const rows = new Map();
+    const evaluationsForSession = bySession[sessionTab] || [];
+    const totalJudges = evaluationsForSession.length;
+    evaluationsForSession.forEach((e) => {
+      const phrases = e.evaluation?.phrases;
+      if (!Array.isArray(phrases)) return;
+      const seen = new Set();
+      phrases.forEach((phrase, idx) => {
+        const penalties = phrase?.actionPenalties || {};
+        Object.entries(penalties).forEach(([penaltyId, count]) => {
+          if (!count) return;
+          const key = `${idx + 1}:${penaltyId}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          const current = rows.get(key) || {
+            actionNumber: idx + 1,
+            penaltyId,
+            judgeCount: 0,
+            totalJudges
+          };
+          current.judgeCount += 1;
+          rows.set(key, current);
+        });
+      });
+    });
+
+    return Array.from(rows.values())
+      .map((row) => {
+        const penaltyMeta = PENALTY_PRESETS.find((p) => p.id === row.penaltyId);
+        return {
+          ...row,
+          key: `action:${row.actionNumber}:${row.penaltyId}`,
+          label: penaltyMeta?.label || row.penaltyId,
+          group: penaltyMeta?.group || "",
+          majority:
+            row.totalJudges > 0 ? row.judgeCount / row.totalJudges >= 0.5 : false
+        };
+      })
+      .sort((a, b) => a.actionNumber - b.actionNumber);
+  }, [bySession, sessionTab]);
+
+  const effectiveActionPenalty = (key, majority) => {
+    if (Object.prototype.hasOwnProperty.call(penaltyMap, key)) return penaltyMap[key];
+    return Boolean(majority);
+  };
+
+  const buildEffectiveMap = () => {
+    const next = {};
+    globalPenalties.forEach((p) => {
+      if (Object.prototype.hasOwnProperty.call(penaltyMap, p.id)) {
+        next[p.id] = penaltyMap[p.id];
+      } else {
+        next[p.id] = Boolean(majorityMap[p.id]);
+      }
+    });
+    actionPenaltyRows.forEach((row) => {
+      if (Object.prototype.hasOwnProperty.call(penaltyMap, row.key)) {
+        next[row.key] = penaltyMap[row.key];
+      } else {
+        next[row.key] = Boolean(row.majority);
+      }
+    });
+    return next;
+  };
+
+  const handleSave = async () => {
+    setSaveStatus("");
+    const ok = await onSavePenalties(sessionTab, buildEffectiveMap());
+    if (ok) {
+      setBaseline(JSON.stringify(penaltyMap || {}));
+      setDirty(false);
+      setSaveStatus("Penalites enregistrees.");
+    } else {
+      setSaveStatus("Echec de l'enregistrement.");
+    }
   };
 
   const overallAverage = useMemo(() => {
@@ -177,7 +278,7 @@ export default function FinalScorePage({
       <section className="card">
         <h2>Validation des penalites ({sessionLabel(sessionTab)})</h2>
         <div className="penalties">
-          {PENALTY_PRESETS.map((p) => (
+          {globalPenalties.map((p) => (
             <div key={p.id} className="penalty-row">
               <div>
                 <strong>{p.label}</strong>
@@ -188,7 +289,7 @@ export default function FinalScorePage({
                   <input
                     type="checkbox"
                     checked={effectivePenalty(p.id)}
-                    onChange={(e) => onTogglePenalty(sessionTab, p.id, e.target.checked)}
+                    onChange={(e) => handleToggle(p.id, e.target.checked)}
                   />
                   Valider
                 </label>
@@ -199,9 +300,48 @@ export default function FinalScorePage({
             </div>
           ))}
         </div>
-        <button type="button" className="ghost" onClick={() => onSavePenalties(sessionTab)}>
+        <h3 className="section-title">Penalites d'action</h3>
+        {actionPenaltyRows.length === 0 ? (
+          <p className="muted">Aucune penalite d'action signalee.</p>
+        ) : (
+          <div className="penalties">
+            {actionPenaltyRows.map((row) => (
+              <div key={row.key} className="penalty-row">
+                <div>
+                  <strong>
+                    Action {row.actionNumber} · {row.label}
+                  </strong>
+                  {row.group && <span className="muted penalty-meta">{row.group}</span>}
+                  <span className="muted penalty-meta">
+                    {row.judgeCount}/{row.totalJudges} jurés
+                  </span>
+                </div>
+                <div className="penalty-controls">
+                  <label className="dq-toggle">
+                    <input
+                      type="checkbox"
+                      checked={effectiveActionPenalty(row.key, row.majority)}
+                      onChange={(e) => handleToggle(row.key, e.target.checked)}
+                    />
+                    Valider
+                  </label>
+                  {!Object.prototype.hasOwnProperty.call(penaltyMap, row.key) && row.majority && (
+                    <span className="badge">majorite</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          className="ghost penalty-save"
+          onClick={handleSave}
+          disabled={!hasChanges}
+        >
           Enregistrer les penalites
         </button>
+        {saveStatus && <p className="muted">{saveStatus}</p>}
       </section>
 
       {sessionTab === "libre" && (
@@ -220,3 +360,7 @@ export default function FinalScorePage({
     </div>
   );
 }
+  const handleToggle = (penaltyId, checked) => {
+    setDirty(true);
+    onTogglePenalty(sessionTab, penaltyId, checked);
+  };
