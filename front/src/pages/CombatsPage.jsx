@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { FaClipboardList, FaShareAlt, FaTrophy, FaEdit, FaTrashAlt } from "react-icons/fa";
+import {
+  FaClipboardList,
+  FaShareAlt,
+  FaTrophy,
+  FaEdit,
+  FaTrashAlt,
+} from "react-icons/fa";
 
 export default function CombatsPage({
   combats,
@@ -120,7 +126,7 @@ export default function CombatsPage({
                     <div className="combat-actions-right">
                       <button
                         type="button"
-                        className="primary"
+                        className="blue"
                         onClick={() => onOpenCombatTechnique(c)}
                         disabled={isBusy || techDone}
                       >
@@ -273,7 +279,9 @@ export default function CombatsPage({
                     {activeShareList.map((u) => (
                       <div key={u.id} className="share-pill">
                         <span>
-                        {u.prenom || u.nom ? `${u.prenom || ""} ${u.nom || ""}`.trim() : u.email}
+                          {u.prenom || u.nom
+                            ? `${u.prenom || ""} ${u.nom || ""}`.trim()
+                            : u.email}
                         </span>
                         <span className="muted">{u.email}</span>
                         <button
@@ -300,7 +308,9 @@ export default function CombatsPage({
                   <option value="">Partager avec...</option>
                   {shareUsers.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.prenom || u.nom ? `${u.prenom || ""} ${u.nom || ""}`.trim() : u.email}
+                      {u.prenom || u.nom
+                        ? `${u.prenom || ""} ${u.nom || ""}`.trim()
+                        : u.email}
                     </option>
                   ))}
                 </select>
