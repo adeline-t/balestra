@@ -106,6 +106,16 @@ export default function CombatFormPage({
           <button type="submit" disabled={isBusy}>
             {editing ? "Enregistrer les modifications" : "Creer le combat"}
           </button>
+          {isBusy && (
+            <div className="loading-row">
+              <span className="spinner" aria-hidden="true" />
+              <span>
+                {editing
+                  ? "On met a jour le combat… cela peut prendre quelques instants."
+                  : "On prepare votre combat… cela peut prendre quelques instants."}
+              </span>
+            </div>
+          )}
         </form>
       </section>
     </div>

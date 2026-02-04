@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import MainLayout from "./components/layout/MainLayout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -143,20 +143,27 @@ export default function App() {
     }
   }, []);
 
+  const saveTimer = useRef(null);
   useEffect(() => {
-    if (isSandbox) return;
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        phrases,
-        penaltyCounts,
-        duration,
-        combatTime,
-        hits,
-        category,
-        combatName
-      })
-    );
+    if (isSandbox) return undefined;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          phrases,
+          penaltyCounts,
+          duration,
+          combatTime,
+          hits,
+          category,
+          combatName
+        })
+      );
+    }, 300);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [phrases, penaltyCounts, duration, combatTime, hits, category, combatName, isSandbox]);
 
   useEffect(() => {

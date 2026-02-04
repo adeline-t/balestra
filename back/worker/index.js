@@ -82,9 +82,15 @@ const createUniqueTechCode = async (env) => {
   return `${generateTechCode()}${Date.now().toString().slice(-3)}`;
 };
 
+let hasBootstrapped = false;
+
 const ensureBootstrap = async (env) => {
-  const row = await env.balestra_db.prepare("SELECT COUNT(*) as count FROM users").first();
-  if (row && row.count > 0) return;
+  if (hasBootstrapped) return;
+  const row = await env.balestra_db.prepare("SELECT 1 as ok FROM users LIMIT 1").first();
+  if (row && row.ok) {
+    hasBootstrapped = true;
+    return;
+  }
 
   const salt = randomSalt();
   const passwordHash = await hashPassword("escrime", salt);
@@ -92,6 +98,7 @@ const ensureBootstrap = async (env) => {
     .prepare("INSERT INTO users (email, password_hash, password_salt, role, created_at) VALUES (?1, ?2, ?3, ?4, ?5)")
     .bind("admin@balestra.local", passwordHash, salt, "superadmin", new Date().toISOString())
     .run();
+  hasBootstrapped = true;
 };
 
 const getAuthUser = async (request, env) => {
@@ -507,23 +514,10 @@ export default {
       const sessionType = body.session_type === "libre" ? "libre" : "technique";
       const artisticScores = body.artistic_scores && typeof body.artistic_scores === "object" ? body.artistic_scores : {};
 
-      const existing = await env.balestra_db
-        .prepare("SELECT id FROM evaluations WHERE combat_id = ?1 AND author_user_id = ?2 AND session_type = ?3")
-        .bind(id, user.id, sessionType)
-        .first();
-
-      if (existing) {
-        await env.balestra_db
-          .prepare("UPDATE evaluations SET payload = ?1, artistic_scores = ?2 WHERE id = ?3")
-          .bind(JSON.stringify(body.evaluation), JSON.stringify(artisticScores), existing.id)
-          .run();
-        return jsonResponse({ ok: true, updated: true });
-      }
-
       const createdAt = new Date().toISOString();
       await env.balestra_db
         .prepare(
-          "INSERT INTO evaluations (name, payload, created_at, combat_id, author_user_id, session_type, artistic_scores) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+          "INSERT INTO evaluations (name, payload, created_at, combat_id, author_user_id, session_type, artistic_scores) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(combat_id, author_user_id, session_type) DO UPDATE SET name = excluded.name, payload = excluded.payload, artistic_scores = excluded.artistic_scores"
         )
         .bind(
           body.name || "Evaluation",
