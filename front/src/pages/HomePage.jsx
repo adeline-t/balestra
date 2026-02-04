@@ -43,6 +43,17 @@ export default function HomePage({
               Acceder au depot GitHub
             </a>
           </p>
+          <p>
+            Documentation officielle FFE (escrime artistique) :{" "}
+            <a
+              href="https://www.ffescrime.fr/media-documents/?thematic=escrime-artistique&order=ASC&doc-name="
+              className="ghost link-btn"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Consulter la documentation
+            </a>
+          </p>
         </div>
       </section>
       <section className="card">
