@@ -23,6 +23,16 @@ export default function HomePage({ onCreateCombat, onGoCombats }) {
           Crée un combat, partage-le aux jurés, puis chaque juré saisit sa notation. Une seule note par
           combat et par juré.
         </p>
+        <div className="info-box">
+          <strong>Contact</strong>
+          <p>
+            Pour les questions et autres remarques, écrivez à{" "}
+            <a href="mailto:balestra.k3qcbu@bumpmail.io" className="link">
+              balestra.k3qcbu@bumpmail.io
+            </a>
+            .
+          </p>
+        </div>
       </section>
     </div>
   );

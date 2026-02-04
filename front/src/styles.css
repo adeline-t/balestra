@@ -66,6 +66,12 @@ body {
   gap: 12px;
 }
 
+.topbar-right .icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
 .app-brand {
   font-family: "Barlow Condensed", sans-serif;
   font-size: 20px;
@@ -961,6 +967,20 @@ th {
 
 .auth-card {
   max-width: 520px;
+}
+
+.info-box {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 21, 37, 0.12);
+  background: var(--c-chip);
+  display: grid;
+  gap: 6px;
+}
+
+.info-box p {
+  margin: 0;
 }
 
 .user-list {

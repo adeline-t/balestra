@@ -7,7 +7,7 @@ export default function LoginPage({
   isBusy,
   onEmailChange,
   onPasswordChange,
-  onSubmit
+  onSubmit,
 }) {
   return (
     <div className="page">
@@ -43,7 +43,16 @@ export default function LoginPage({
           </button>
         </form>
         {authError && <p className="warning">{authError}</p>}
-        <p className="muted">Superadmin par defaut: admin@balestra.local / escrime</p>
+        <div className="info-box">
+          <strong>Inscription</strong>
+          <p>
+            Envoyez un email a{" "}
+            <a href="mailto:balestra.k3qcbu@bumpmail.io" className="link">
+              balestra.k3qcbu@bumpmail.io
+            </a>{" "}
+            en indiquant l'adresse email a utiliser.
+          </p>
+        </div>
       </section>
     </div>
   );

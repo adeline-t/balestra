@@ -1,4 +1,5 @@
 import React from "react";
+import { FaCog } from "react-icons/fa";
 
 export default function MainLayout({ currentUser, active, onNavigate, onLogout, children }) {
   return (
@@ -34,6 +35,17 @@ export default function MainLayout({ currentUser, active, onNavigate, onLogout, 
         </div>
         <div className="topbar-right">
           <span className="topbar-user">{currentUser?.email}</span>
+          {currentUser && (
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Parametres du compte"
+              title="Parametres du compte"
+              onClick={() => onNavigate("account")}
+            >
+              <FaCog />
+            </button>
+          )}
           <button type="button" className="ghost" onClick={onLogout}>
             Deconnexion
           </button>

@@ -270,6 +270,24 @@ export default {
       return jsonResponse({ ok: true });
     }
 
+    if (url.pathname === "/api/me/password" && request.method === "PATCH") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const body = await readBody(request);
+      if (!body || typeof body.password !== "string" || body.password.trim().length === 0) {
+        return jsonResponse({ error: "password is required" }, 400);
+      }
+      const salt = randomSalt();
+      const passwordHash = await hashPassword(body.password.trim(), salt);
+      const result = await env.balestra_db
+        .prepare("UPDATE users SET password_hash = ?1, password_salt = ?2 WHERE id = ?3")
+        .bind(passwordHash, salt, user.id)
+        .run();
+      if (result.changes === 0) return jsonResponse({ error: "Not Found" }, 404);
+      return jsonResponse({ ok: true });
+    }
+
     if (url.pathname === "/api/combats" && request.method === "GET") {
       const { user, error } = await requireAuth(request, env);
       if (error) return error;
@@ -629,7 +647,9 @@ export default {
 
       return jsonResponse({ error: "Not Found" }, 404);
     } catch (err) {
-      return jsonResponse({ error: "Internal error" }, 500);
+      const detail =
+        err && typeof err === "object" && "message" in err ? err.message : String(err);
+      return jsonResponse({ error: "Internal error", detail }, 500);
     }
   }
 };

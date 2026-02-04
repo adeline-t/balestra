@@ -6,6 +6,7 @@ import CombatsPage from "./pages/CombatsPage.jsx";
 import CombatFormPage from "./pages/CombatFormPage.jsx";
 import EvaluationPage from "./pages/EvaluationPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
+import AccountPage from "./pages/AccountPage.jsx";
 import FinalScorePage from "./pages/FinalScorePage.jsx";
 import ResultsPage from "./pages/ResultsPage.jsx";
 import {
@@ -86,6 +87,7 @@ export default function App() {
   const [combats, setCombats] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
   const [indexStatus, setIndexStatus] = useState("");
+  const [accountStatus, setAccountStatus] = useState("");
   const [authToken, setAuthToken] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [authEmail, setAuthEmail] = useState("");
@@ -596,6 +598,24 @@ export default function App() {
     localStorage.removeItem(AUTH_KEY);
   }
 
+  async function handleChangePassword(newPassword) {
+    setAccountStatus("");
+    setIsBusy(true);
+    try {
+      const res = await apiFetch(`/api/me/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword })
+      });
+      if (!res.ok) throw new Error("failed");
+      setAccountStatus("Mot de passe mis a jour.");
+    } catch {
+      setAccountStatus("Impossible de modifier le mot de passe.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function handleCreateUser(event) {
     event.preventDefault();
     if (!newUserEmail.trim() || !newUserPassword.trim()) return;
@@ -1010,6 +1030,14 @@ export default function App() {
     >
       {route === "home" && (
         <HomePage onCreateCombat={handleCreateCombat} onGoCombats={() => setRoute("combats")} />
+      )}
+      {route === "account" && (
+        <AccountPage
+          currentUser={currentUser}
+          onChangePassword={handleChangePassword}
+          isBusy={isBusy}
+          status={accountStatus}
+        />
       )}
       {route === "combats" && (
         <CombatsPage
