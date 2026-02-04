@@ -99,6 +99,7 @@ export default function App() {
   const [shareTargets, setShareTargets] = useState({});
   const [shareLists, setShareLists] = useState({});
   const [combatEvaluations, setCombatEvaluations] = useState({});
+  const [myEvaluationsMap, setMyEvaluationsMap] = useState({});
   const [finalEvaluations, setFinalEvaluations] = useState([]);
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
@@ -200,6 +201,29 @@ export default function App() {
       }
     };
     verify();
+  }, [authToken]);
+
+  useEffect(() => {
+    if (!authToken) return;
+    const loadMine = async () => {
+      try {
+        const res = await apiFetch("/api/evaluations/mine");
+        if (!res.ok) return;
+        const data = await res.json();
+        const next = {};
+        (data.evaluations || []).forEach((e) => {
+          if (!e) return;
+          const id = String(e.combat_id);
+          if (!next[id]) next[id] = { technique: false, libre: false };
+          const key = e.session_type === "libre" ? "libre" : "technique";
+          next[id][key] = true;
+        });
+        setMyEvaluationsMap(next);
+      } catch {
+        // ignore
+      }
+    };
+    loadMine();
   }, [authToken]);
 
   useEffect(() => {
@@ -1068,6 +1092,14 @@ export default function App() {
       setCombatId(null);
       setCombatName("");
       setRoute("combats");
+      setMyEvaluationsMap((prev) => {
+        const id = String(combatId);
+        const next = { ...prev };
+        const current = next[id] || { technique: false, libre: false };
+        const key = sessionType === "libre" ? "libre" : "technique";
+        next[id] = { ...current, [key]: true };
+        return next;
+      });
       await loadCombats();
     } catch {
       alert("Echec sauvegarde.");
@@ -1123,6 +1155,8 @@ export default function App() {
           shareTargets={shareTargets}
           shareLists={shareLists}
           combatEvaluations={combatEvaluations}
+          myEvaluationsMap={myEvaluationsMap}
+          currentUser={currentUser}
           indexStatus={indexStatus}
           isBusy={isBusy}
           canEditCombat={canEditCombat}
@@ -1134,6 +1168,7 @@ export default function App() {
           onEditCombat={handleEditCombat}
           onDeleteCombat={handleDeleteCombat}
           onToggleShares={toggleShares}
+          onLoadShares={loadShares}
           onToggleEvaluations={toggleCombatEvaluations}
           onShareChange={(id, value) =>
             setShareTargets((prev) => ({ ...prev, [id]: value }))

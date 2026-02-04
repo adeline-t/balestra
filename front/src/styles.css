@@ -447,11 +447,26 @@ th {
   flex-wrap: wrap;
 }
 
+.combat-header {
+  align-items: flex-start;
+}
+
+.combat-actions-right {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .combat-title {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.combat-subline {
+  margin-top: 2px;
 }
 
 .combat-meta {
@@ -475,6 +490,23 @@ th {
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+.action-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: var(--c-blue);
+  margin-right: 6px;
+}
+
+.combat-links .ghost {
+  padding: 6px 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .action-menu {
@@ -501,9 +533,22 @@ th {
   gap: 10px;
 }
 
+.action-menu-body .ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .action-divider {
   height: 1px;
   background: rgba(15, 21, 37, 0.1);
+}
+
+.share-owner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .grid-row {

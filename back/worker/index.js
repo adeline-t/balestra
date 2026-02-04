@@ -218,6 +218,17 @@ export default {
       return jsonResponse({ users: results });
     }
 
+    if (url.pathname === "/api/evaluations/mine" && request.method === "GET") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const { results } = await env.balestra_db
+        .prepare("SELECT combat_id, session_type FROM evaluations WHERE author_user_id = ?1")
+        .bind(user.id)
+        .all();
+      return jsonResponse({ evaluations: results });
+    }
+
     if (url.pathname === "/api/users/shareable" && request.method === "GET") {
       const { user, error } = await requireAuth(request, env);
       if (error) return error;
@@ -302,7 +313,7 @@ export default {
       if (isSuperAdmin(user)) {
         const { results } = await env.balestra_db
           .prepare(
-            "SELECT id, name, category, club, fencers, description, tech_code, created_at, owner_user_id, 0 as is_shared FROM combats ORDER BY id DESC"
+            "SELECT c.id, c.name, c.category, c.club, c.fencers, c.description, c.tech_code, c.created_at, c.owner_user_id, u.email as owner_email, 0 as is_shared FROM combats c JOIN users u ON u.id = c.owner_user_id ORDER BY c.id DESC"
           )
           .all();
         return jsonResponse({ combats: results });
@@ -310,7 +321,7 @@ export default {
 
       const { results } = await env.balestra_db
         .prepare(
-          "SELECT c.id, c.name, c.category, c.club, c.fencers, c.description, c.tech_code, c.created_at, c.owner_user_id, CASE WHEN c.owner_user_id != ?1 THEN 1 ELSE 0 END as is_shared FROM combats c LEFT JOIN combat_shares s ON s.combat_id = c.id AND s.user_id = ?1 WHERE c.owner_user_id = ?1 OR s.user_id = ?1 ORDER BY c.id DESC"
+          "SELECT c.id, c.name, c.category, c.club, c.fencers, c.description, c.tech_code, c.created_at, c.owner_user_id, u.email as owner_email, CASE WHEN c.owner_user_id != ?1 THEN 1 ELSE 0 END as is_shared FROM combats c JOIN users u ON u.id = c.owner_user_id LEFT JOIN combat_shares s ON s.combat_id = c.id AND s.user_id = ?1 WHERE c.owner_user_id = ?1 OR s.user_id = ?1 ORDER BY c.id DESC"
         )
         .bind(user.id)
         .all();
