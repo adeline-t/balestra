@@ -95,8 +95,10 @@ const ensureBootstrap = async (env) => {
   const salt = randomSalt();
   const passwordHash = await hashPassword("escrime", salt);
   await env.balestra_db
-    .prepare("INSERT INTO users (email, password_hash, password_salt, role, created_at) VALUES (?1, ?2, ?3, ?4, ?5)")
-    .bind("admin@balestra.local", passwordHash, salt, "superadmin", new Date().toISOString())
+    .prepare(
+      "INSERT INTO users (email, password_hash, password_salt, role, created_at, prenom, nom) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
+    )
+    .bind("admin@balestra.local", passwordHash, salt, "superadmin", new Date().toISOString(), "", "")
     .run();
   hasBootstrapped = true;
 };
@@ -109,7 +111,7 @@ const getAuthUser = async (request, env) => {
 
   const row = await env.balestra_db
     .prepare(
-      "SELECT u.id, u.email, u.role, s.token, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?1"
+      "SELECT u.id, u.email, u.role, u.prenom, u.nom, s.token, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?1"
     )
     .bind(token)
     .first();
@@ -117,7 +119,7 @@ const getAuthUser = async (request, env) => {
   if (!row) return null;
   if (row.expires_at && new Date(row.expires_at) < new Date()) return null;
 
-  return { id: row.id, email: row.email, role: row.role, token: row.token };
+  return { id: row.id, email: row.email, role: row.role, prenom: row.prenom, nom: row.nom, token: row.token };
 };
 
 const requireAuth = async (request, env) => {
@@ -170,7 +172,7 @@ export default {
         }
 
         const user = await env.balestra_db
-          .prepare("SELECT id, email, role, password_hash, password_salt FROM users WHERE email = ?1")
+          .prepare("SELECT id, email, role, prenom, nom, password_hash, password_salt FROM users WHERE email = ?1")
           .bind(body.email.trim().toLowerCase())
           .first();
 
@@ -188,7 +190,7 @@ export default {
 
         return jsonResponse({
           token,
-          user: { id: user.id, email: user.email, role: user.role }
+          user: { id: user.id, email: user.email, role: user.role, prenom: user.prenom, nom: user.nom }
         });
       }
 
@@ -213,7 +215,7 @@ export default {
       if (!isSuperAdmin(user)) return jsonResponse({ error: "Forbidden" }, 403);
 
       const { results } = await env.balestra_db
-        .prepare("SELECT id, email, role, created_at FROM users ORDER BY id DESC")
+        .prepare("SELECT id, email, role, prenom, nom, created_at FROM users ORDER BY id DESC")
         .all();
       return jsonResponse({ users: results });
     }
@@ -233,7 +235,7 @@ export default {
       const { user, error } = await requireAuth(request, env);
       if (error) return error;
       const { results } = await env.balestra_db
-        .prepare("SELECT id, email FROM users WHERE id != ?1 ORDER BY email ASC")
+        .prepare("SELECT id, email, prenom, nom FROM users WHERE id != ?1 ORDER BY email ASC")
         .bind(user.id)
         .all();
       return jsonResponse({ users: results });
@@ -250,13 +252,15 @@ export default {
       }
       const role = body.role === "superadmin" ? "superadmin" : "user";
       const email = body.email.trim().toLowerCase();
+      const prenom = typeof body.prenom === "string" ? body.prenom.trim() : "";
+      const nom = typeof body.nom === "string" ? body.nom.trim() : "";
       const salt = randomSalt();
       const passwordHash = await hashPassword(body.password, salt);
 
       try {
         await env.balestra_db
-          .prepare("INSERT INTO users (email, password_hash, password_salt, role, created_at) VALUES (?1, ?2, ?3, ?4, ?5)")
-          .bind(email, passwordHash, salt, role, new Date().toISOString())
+          .prepare("INSERT INTO users (email, password_hash, password_salt, role, created_at, prenom, nom) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")
+          .bind(email, passwordHash, salt, role, new Date().toISOString(), prenom, nom)
           .run();
       } catch {
         return jsonResponse({ error: "email already exists" }, 400);
@@ -304,6 +308,21 @@ export default {
         .run();
       if (result.changes === 0) return jsonResponse({ error: "Not Found" }, 404);
       return jsonResponse({ ok: true });
+    }
+
+    if (url.pathname === "/api/me/profile" && request.method === "PATCH") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const body = await readBody(request);
+      const prenom = typeof body?.prenom === "string" ? body.prenom.trim() : "";
+      const nom = typeof body?.nom === "string" ? body.nom.trim() : "";
+      const result = await env.balestra_db
+        .prepare("UPDATE users SET prenom = ?1, nom = ?2 WHERE id = ?3")
+        .bind(prenom, nom, user.id)
+        .run();
+      if (result.changes === 0) return jsonResponse({ error: "Not Found" }, 404);
+      return jsonResponse({ ok: true, user: { id: user.id, email: user.email, role: user.role, prenom, nom } });
     }
 
     if (url.pathname === "/api/combats" && request.method === "GET") {
@@ -561,7 +580,7 @@ export default {
 
       const { results } = await env.balestra_db
         .prepare(
-          "SELECT e.id, e.created_at, u.email as author_email FROM evaluations e JOIN users u ON u.id = e.author_user_id WHERE e.combat_id = ?1 ORDER BY e.created_at DESC"
+          "SELECT e.id, e.created_at, u.email as author_email, u.prenom as author_prenom, u.nom as author_nom FROM evaluations e JOIN users u ON u.id = e.author_user_id WHERE e.combat_id = ?1 ORDER BY e.created_at DESC"
         )
         .bind(id)
         .all();
@@ -585,7 +604,7 @@ export default {
 
       const { results } = await env.balestra_db
         .prepare(
-          "SELECT e.id, e.created_at, e.payload, e.session_type, e.artistic_scores, u.email as author_email FROM evaluations e JOIN users u ON u.id = e.author_user_id WHERE e.combat_id = ?1 ORDER BY e.created_at DESC"
+          "SELECT e.id, e.created_at, e.payload, e.session_type, e.artistic_scores, u.email as author_email, u.prenom as author_prenom, u.nom as author_nom FROM evaluations e JOIN users u ON u.id = e.author_user_id WHERE e.combat_id = ?1 ORDER BY e.created_at DESC"
         )
         .bind(id)
         .all();

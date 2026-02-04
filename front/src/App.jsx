@@ -102,6 +102,8 @@ export default function App() {
   const [myEvaluationsMap, setMyEvaluationsMap] = useState({});
   const [finalEvaluations, setFinalEvaluations] = useState([]);
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserFirstName, setNewUserFirstName] = useState("");
+  const [newUserLastName, setNewUserLastName] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [sessionType, setSessionType] = useState("technique");
   const [pendingActionPenalties, setPendingActionPenalties] = useState({
@@ -711,6 +713,27 @@ export default function App() {
     }
   }
 
+  async function handleChangeProfile(prenom, nom) {
+    setAccountStatus("");
+    setIsBusy(true);
+    try {
+      const res = await apiFetch(`/api/me/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prenom, nom })
+      });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      setCurrentUser(data.user);
+      localStorage.setItem(AUTH_KEY, JSON.stringify({ token: authToken, user: data.user }));
+      setAccountStatus("Profil mis a jour.");
+    } catch {
+      setAccountStatus("Impossible de modifier le profil.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function handleCreateUser(event) {
     event.preventDefault();
     if (!newUserEmail.trim() || !newUserPassword.trim()) return;
@@ -719,10 +742,17 @@ export default function App() {
       const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: newUserEmail.trim(), password: newUserPassword })
+        body: JSON.stringify({
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+          prenom: newUserFirstName.trim(),
+          nom: newUserLastName.trim()
+        })
       });
       if (!res.ok) throw new Error("failed");
       setNewUserEmail("");
+      setNewUserFirstName("");
+      setNewUserLastName("");
       setNewUserPassword("");
       await loadAdminUsers();
       await loadShareUsers();
@@ -1144,6 +1174,7 @@ export default function App() {
         <AccountPage
           currentUser={currentUser}
           onChangePassword={handleChangePassword}
+          onChangeProfile={handleChangeProfile}
           isBusy={isBusy}
           status={accountStatus}
         />
@@ -1278,9 +1309,13 @@ export default function App() {
         <UsersPage
           users={users}
           newUserEmail={newUserEmail}
+          newUserFirstName={newUserFirstName}
+          newUserLastName={newUserLastName}
           newUserPassword={newUserPassword}
           isBusy={isBusy}
           onEmailChange={setNewUserEmail}
+          onFirstNameChange={setNewUserFirstName}
+          onLastNameChange={setNewUserLastName}
           onPasswordChange={setNewUserPassword}
           onCreateUser={handleCreateUser}
           onResetPassword={handleResetUserPassword}

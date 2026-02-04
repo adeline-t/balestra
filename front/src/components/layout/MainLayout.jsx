@@ -34,7 +34,13 @@ export default function MainLayout({ currentUser, active, onNavigate, onLogout, 
           </nav>
         </div>
         <div className="topbar-right">
-          <span className="topbar-user">{currentUser?.email}</span>
+          <span className="topbar-user">
+            {currentUser
+              ? currentUser.prenom || currentUser.nom
+                ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim()
+                : currentUser.email
+              : ""}
+          </span>
           {currentUser && (
             <button
               type="button"

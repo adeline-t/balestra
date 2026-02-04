@@ -3,9 +3,13 @@ import React from "react";
 export default function UsersPage({
   users,
   newUserEmail,
+  newUserFirstName,
+  newUserLastName,
   newUserPassword,
   isBusy,
   onEmailChange,
+  onFirstNameChange,
+  onLastNameChange,
   onPasswordChange,
   onCreateUser,
   onResetPassword
@@ -31,6 +35,24 @@ export default function UsersPage({
             />
           </label>
           <label>
+            Prenom
+            <input
+              type="text"
+              value={newUserFirstName}
+              onChange={(e) => onFirstNameChange(e.target.value)}
+              placeholder="Prenom"
+            />
+          </label>
+          <label>
+            Nom
+            <input
+              type="text"
+              value={newUserLastName}
+              onChange={(e) => onLastNameChange(e.target.value)}
+              placeholder="Nom"
+            />
+          </label>
+          <label>
             Mot de passe
             <input
               type="text"
@@ -47,7 +69,10 @@ export default function UsersPage({
           <div className="user-list">
             {users.map((u) => (
               <div key={u.id} className="user-row">
-                <span>{u.email}</span>
+                <span>
+                  {u.prenom || u.nom ? `${u.prenom || ""} ${u.nom || ""}`.trim() : u.email}
+                </span>
+                <span className="muted">{u.email}</span>
                 <div className="user-actions">
                   <span className="badge">{u.role}</span>
                   <button

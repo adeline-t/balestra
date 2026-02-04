@@ -252,7 +252,12 @@ export default function FinalScorePage({
             <tbody>
               {scores.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.author_email}</td>
+                  <td>
+                    {s.author_prenom || s.author_nom
+                      ? `${s.author_prenom || ""} ${s.author_nom || ""}`.trim()
+                      : s.author_email}
+                    <div className="muted">{s.author_email}</div>
+                  </td>
                   <td>
                     {formatNumber(
                       sessionTab === "libre" ? s.computed.libreScore : s.computed.score10,

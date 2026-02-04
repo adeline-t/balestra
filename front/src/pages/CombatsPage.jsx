@@ -190,7 +190,12 @@ export default function CombatsPage({
                       ) : (
                         combatEvaluations[c.id].map((n) => (
                           <div key={n.id} className="note-row">
-                            <span>{n.author_email}</span>
+                            <span>
+                              {n.author_prenom || n.author_nom
+                                ? `${n.author_prenom || ""} ${n.author_nom || ""}`.trim()
+                                : n.author_email}
+                            </span>
+                            <span className="muted">{n.author_email}</span>
                             <span className="muted">
                               {n.created_at
                                 ? n.created_at.slice(0, 19).replace("T", " ")
@@ -267,7 +272,10 @@ export default function CombatsPage({
                   <div className="share-list">
                     {activeShareList.map((u) => (
                       <div key={u.id} className="share-pill">
-                        <span>{u.email}</span>
+                        <span>
+                        {u.prenom || u.nom ? `${u.prenom || ""} ${u.nom || ""}`.trim() : u.email}
+                        </span>
+                        <span className="muted">{u.email}</span>
                         <button
                           type="button"
                           className="link"
@@ -292,7 +300,7 @@ export default function CombatsPage({
                   <option value="">Partager avec...</option>
                   {shareUsers.map((u) => (
                     <option key={u.id} value={u.id}>
-                      {u.email}
+                      {u.prenom || u.nom ? `${u.prenom || ""} ${u.nom || ""}`.trim() : u.email}
                     </option>
                   ))}
                 </select>

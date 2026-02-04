@@ -66,7 +66,9 @@ export default function ResultsPage({
       const score = e.session_type === "libre" ? e.computed?.libreScore : e.computed?.score10;
       lines.push([
         sessionLabel(e.session_type),
-        e.author_email,
+        e.author_prenom || e.author_nom
+          ? `${e.author_prenom || ""} ${e.author_nom || ""}`.trim()
+          : e.author_email,
         typeof score === "number" ? formatNumber(score, 2) : "",
         e.created_at ? e.created_at.slice(0, 19).replace("T", " ") : ""
       ]);
@@ -154,7 +156,12 @@ export default function ResultsPage({
                 return (
                   <tr key={e.id}>
                     <td>{sessionLabel(e.session_type)}</td>
-                    <td>{e.author_email}</td>
+                    <td>
+                      {e.author_prenom || e.author_nom
+                        ? `${e.author_prenom || ""} ${e.author_nom || ""}`.trim()
+                        : e.author_email}
+                      <div className="muted">{e.author_email}</div>
+                    </td>
                     <td>{typeof score === "number" ? formatNumber(score, 2) : ""}</td>
                     <td>{e.created_at ? e.created_at.slice(0, 19).replace("T", " ") : ""}</td>
                   </tr>
