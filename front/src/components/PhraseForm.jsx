@@ -4,7 +4,7 @@ import { DIFFICULTIES } from "../data/rules.js";
 export default function PhraseForm({ difficulty, note, onDifficultyClick, onNoteClick }) {
   return (
     <section className="card">
-      <h2>Ajouter une phrase d'armes</h2>
+      <h2>Ajouter une phrase d'arme</h2>
       <form className="form" onSubmit={(event) => event.preventDefault()}>
         <label>
           Difficulte

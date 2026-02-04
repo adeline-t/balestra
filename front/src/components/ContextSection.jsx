@@ -17,7 +17,9 @@ export default function ContextSection({
   durationSeconds,
   combatSeconds,
   perfPenaltyCount,
-  combatPenaltyAuto
+  combatPenaltyAuto,
+  combatNameLocked,
+  categoryLocked
 }) {
   return (
     <section className="card">
@@ -30,12 +32,18 @@ export default function ContextSection({
             value={combatName}
             onChange={(e) => onCombatNameChange(e.target.value)}
             placeholder="Ex: Finale senior - Club X"
+            readOnly={combatNameLocked}
+            disabled={combatNameLocked}
           />
         </label>
 
         <label>
           Categorie
-          <select value={category} onChange={(e) => onCategoryChange(e.target.value)}>
+          <select
+            value={category}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            disabled={categoryLocked}
+          >
             <option value="">Selectionner</option>
             {CATEGORY_OPTIONS.map((c) => (
               <option key={c.value} value={c.value}>

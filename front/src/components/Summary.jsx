@@ -1,18 +1,12 @@
 import React from "react";
 import { formatNumber } from "../data/rules.js";
 
-export default function Summary({
-  computed,
-  penaltyTotal,
-  disqualified,
-  onFinishNoSave,
-  onFinishSave,
-  isBusy
-}) {
+export default function Summary({ computed, penaltyTotal, disqualified }) {
   return (
     <section className="card">
-      <h2>Resume du calcul</h2>
-      <div className="summary">
+      <details className="details" open>
+        <summary>Resume du calcul</summary>
+        <div className="summary">
         <div>
           <span>Moyenne simple</span>
           <strong>{formatNumber(computed.avgSimple, 2)} /5</strong>
@@ -43,15 +37,8 @@ export default function Summary({
             {disqualified ? "DISQUALIFIE" : `${formatNumber(computed.finalScore, 2)} /10`}
           </strong>
         </div>
-      </div>
-      <div className="summary-actions">
-        <button type="button" className="ghost" onClick={onFinishNoSave} disabled={isBusy}>
-          Terminer sans sauvegarder
-        </button>
-        <button type="button" onClick={onFinishSave} disabled={isBusy}>
-          Terminer et sauvegarder
-        </button>
-      </div>
+        </div>
+      </details>
     </section>
   );
 }
