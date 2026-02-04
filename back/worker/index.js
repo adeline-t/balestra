@@ -143,46 +143,47 @@ const canEditCombat = async (env, combatId, user) => {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    try {
+      const url = new URL(request.url);
 
-    if (request.method === "OPTIONS") {
-      return jsonResponse({ ok: true });
-    }
-
-    if (url.pathname === "/api/health") {
-      return jsonResponse({ ok: true });
-    }
-
-    await ensureBootstrap(env);
-
-    if (url.pathname === "/api/auth/login" && request.method === "POST") {
-      const body = await readBody(request);
-      if (!body || typeof body.email !== "string" || typeof body.password !== "string") {
-        return jsonResponse({ error: "email and password are required" }, 400);
+      if (request.method === "OPTIONS") {
+        return jsonResponse({ ok: true });
       }
 
-      const user = await env.balestra_db
-        .prepare("SELECT id, email, role, password_hash, password_salt FROM users WHERE email = ?1")
-        .bind(body.email.trim().toLowerCase())
-        .first();
+      if (url.pathname === "/api/health") {
+        return jsonResponse({ ok: true });
+      }
 
-      if (!user) return jsonResponse({ error: "invalid credentials" }, 401);
+      await ensureBootstrap(env);
 
-      const check = await hashPassword(body.password, user.password_salt);
-      if (check !== user.password_hash) return jsonResponse({ error: "invalid credentials" }, 401);
+      if (url.pathname === "/api/auth/login" && request.method === "POST") {
+        const body = await readBody(request);
+        if (!body || typeof body.email !== "string" || typeof body.password !== "string") {
+          return jsonResponse({ error: "email and password are required" }, 400);
+        }
 
-      const token = crypto.randomUUID();
-      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
-      await env.balestra_db
-        .prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)")
-        .bind(token, user.id, new Date().toISOString(), expiresAt)
-        .run();
+        const user = await env.balestra_db
+          .prepare("SELECT id, email, role, password_hash, password_salt FROM users WHERE email = ?1")
+          .bind(body.email.trim().toLowerCase())
+          .first();
 
-      return jsonResponse({
-        token,
-        user: { id: user.id, email: user.email, role: user.role }
-      });
-    }
+        if (!user) return jsonResponse({ error: "invalid credentials" }, 401);
+
+        const check = await hashPassword(body.password, user.password_salt);
+        if (check !== user.password_hash) return jsonResponse({ error: "invalid credentials" }, 401);
+
+        const token = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+        await env.balestra_db
+          .prepare("INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)")
+          .bind(token, user.id, new Date().toISOString(), expiresAt)
+          .run();
+
+        return jsonResponse({
+          token,
+          user: { id: user.id, email: user.email, role: user.role }
+        });
+      }
 
     if (url.pathname === "/api/auth/me" && request.method === "GET") {
       const { user, error } = await requireAuth(request, env);
@@ -626,6 +627,9 @@ export default {
       return jsonResponse({ ok: true });
     }
 
-    return jsonResponse({ error: "Not Found" }, 404);
+      return jsonResponse({ error: "Not Found" }, 404);
+    } catch (err) {
+      return jsonResponse({ error: "Internal error" }, 500);
+    }
   }
 };
