@@ -505,6 +505,26 @@ export default {
       return jsonResponse({ ok: true, created_at: createdAt }, 201);
     }
 
+    if (url.pathname.startsWith("/api/combats/") && url.pathname.endsWith("/evaluations") && request.method === "GET") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canAccess = await hasCombatAccess(env, id, user);
+      if (!canAccess) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const { results } = await env.balestra_db
+        .prepare(
+          "SELECT e.id, e.created_at, u.email as author_email FROM evaluations e JOIN users u ON u.id = e.author_user_id WHERE e.combat_id = ?1 ORDER BY e.created_at DESC"
+        )
+        .bind(id)
+        .all();
+      return jsonResponse({ evaluations: results });
+    }
+
     return jsonResponse({ error: "Not Found" }, 404);
   }
 };

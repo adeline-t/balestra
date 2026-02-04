@@ -1,84 +1,48 @@
 import React, { useEffect, useMemo, useState } from "react";
-import InfoModal from "./components/InfoModal.jsx";
-import ContextSection from "./components/ContextSection.jsx";
-import PhraseForm from "./components/PhraseForm.jsx";
-import PhraseTable from "./components/PhraseTable.jsx";
-import Penalties from "./components/Penalties.jsx";
-import Summary from "./components/Summary.jsx";
+import MainLayout from "./components/layout/MainLayout.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
+import HomePage from "./pages/HomePage.jsx";
+import CombatsPage from "./pages/CombatsPage.jsx";
+import CombatFormPage from "./pages/CombatFormPage.jsx";
+import EvaluationPage from "./pages/EvaluationPage.jsx";
+import UsersPage from "./pages/UsersPage.jsx";
 import {
   DIFFICULTIES,
   PENALTY_PRESETS,
   TIME_RULES,
   formatNumber,
   getCategoryInfo,
-  getCategoryLabel,
   getModeFromCategory,
   parseMmss,
-  toNumber,
-  CATEGORY_OPTIONS,
+  toNumber
 } from "./data/rules.js";
 
 const STORAGE_KEY = "balestra_evaluation_v1";
 const AUTH_KEY = "balestra_auth_v1";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8787";
 
-function buildCsv(
-  phrases,
-  penaltyTotal,
-  computed,
-  meta,
-  penaltyCounts,
-  disqualified,
-) {
+function buildCsv(phrases, penaltyTotal, computed, meta, penaltyCounts, disqualified) {
   const lines = [];
-  lines.push(["meta", "categorie", getCategoryLabel(meta.category || "")]);
+  lines.push(["meta", "categorie", meta.category || ""]);
   lines.push(["meta", "duree_mmss", meta.duration || ""]);
   lines.push(["meta", "combat_mmss", meta.combatTime || ""]);
   lines.push(["meta", "nombre_coups", meta.hits || ""]);
   lines.push(["meta", "disqualifie", disqualified ? "oui" : "non"]);
   lines.push([]);
-  lines.push([
-    "index",
-    "difficulte",
-    "coefficient",
-    "note_sur_5",
-    "note_ponderee",
-  ]);
+  lines.push(["index", "difficulte", "coefficient", "note_sur_5", "note_ponderee"]);
 
   phrases.forEach((p, index) => {
-    lines.push([
-      index + 1,
-      p.difficulty,
-      p.coef,
-      p.note,
-      formatNumber(p.note * p.coef, 2),
-    ]);
+    lines.push([index + 1, p.difficulty, p.coef, p.note, formatNumber(p.note * p.coef, 2)]);
   });
 
   lines.push([]);
   lines.push(["resume", "moyenne_simple", formatNumber(computed.avgSimple, 2)]);
-  lines.push([
-    "resume",
-    "moyenne_complexe",
-    formatNumber(computed.avgComplexe, 2),
-  ]);
-  lines.push([
-    "resume",
-    "moyenne_avancee",
-    formatNumber(computed.avgAvancee, 2),
-  ]);
-  lines.push([
-    "resume",
-    "moyenne_ponderee_sur_5",
-    formatNumber(computed.avgWeighted, 2),
-  ]);
+  lines.push(["resume", "moyenne_complexe", formatNumber(computed.avgComplexe, 2)]);
+  lines.push(["resume", "moyenne_avancee", formatNumber(computed.avgAvancee, 2)]);
+  lines.push(["resume", "moyenne_ponderee_sur_5", formatNumber(computed.avgWeighted, 2)]);
   lines.push(["resume", "note_sur_10", formatNumber(computed.score10, 2)]);
   lines.push(["resume", "penalites", formatNumber(penaltyTotal, 2)]);
-  lines.push([
-    "resume",
-    "note_finale",
-    disqualified ? "DISQUALIFIE" : formatNumber(computed.finalScore, 2),
-  ]);
+  lines.push(["resume", "note_finale", disqualified ? "DISQUALIFIE" : formatNumber(computed.finalScore, 2)]);
   lines.push([]);
   lines.push(["penalites", "type", "occurrences", "valeur", "total"]);
   PENALTY_PRESETS.forEach((p) => {
@@ -88,14 +52,12 @@ function buildCsv(
       p.label,
       count,
       p.value,
-      p.value === "DQ" ? "DQ" : formatNumber(count * p.value, 2),
+      p.value === "DQ" ? "DQ" : formatNumber(count * p.value, 2)
     ]);
   });
 
   return lines
-    .map((row) =>
-      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
-    )
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
     .join("\n");
 }
 
@@ -117,7 +79,7 @@ export default function App() {
   const [combatTechCode, setCombatTechCode] = useState("");
   const [newFencer, setNewFencer] = useState("");
   const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [view, setView] = useState("index");
+  const [route, setRoute] = useState("home");
   const [editingCombatId, setEditingCombatId] = useState(null);
   const [combats, setCombats] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
@@ -131,6 +93,7 @@ export default function App() {
   const [shareUsers, setShareUsers] = useState([]);
   const [shareTargets, setShareTargets] = useState({});
   const [shareLists, setShareLists] = useState({});
+  const [combatEvaluations, setCombatEvaluations] = useState({});
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
 
@@ -167,18 +130,10 @@ export default function App() {
         combatTime,
         hits,
         category,
-        combatName,
-      }),
+        combatName
+      })
     );
-  }, [
-    phrases,
-    penaltyCounts,
-    duration,
-    combatTime,
-    hits,
-    category,
-    combatName,
-  ]);
+  }, [phrases, penaltyCounts, duration, combatTime, hits, category, combatName]);
 
   useEffect(() => {
     const raw = localStorage.getItem(AUTH_KEY);
@@ -200,10 +155,7 @@ export default function App() {
         if (!res.ok) throw new Error("invalid");
         const data = await res.json();
         setCurrentUser(data.user);
-        localStorage.setItem(
-          AUTH_KEY,
-          JSON.stringify({ token: authToken, user: data.user }),
-        );
+        localStorage.setItem(AUTH_KEY, JSON.stringify({ token: authToken, user: data.user }));
       } catch {
         setAuthToken("");
         setCurrentUser(null);
@@ -213,6 +165,12 @@ export default function App() {
     verify();
   }, [authToken]);
 
+  useEffect(() => {
+    if (currentUser?.role !== "superadmin" && route === "users") {
+      setRoute("home");
+    }
+  }, [route, currentUser?.role]);
+
   const loadCombats = async (signal) => {
     setIndexStatus("");
     try {
@@ -221,8 +179,7 @@ export default function App() {
       const data = await res.json();
       setCombats(Array.isArray(data.combats) ? data.combats : []);
     } catch {
-      if (!signal || !signal.aborted)
-        setIndexStatus("Impossible de charger les combats.");
+      if (!signal || !signal.aborted) setIndexStatus("Impossible de charger les combats.");
     }
   };
 
@@ -269,8 +226,7 @@ export default function App() {
   }, [timeRule]);
 
   const autoCombatPenalty = useMemo(() => {
-    if (!timeRule || combatSeconds === null || combatMinSeconds === null)
-      return 0;
+    if (!timeRule || combatSeconds === null || combatMinSeconds === null) return 0;
     return combatSeconds < combatMinSeconds - 10 ? 1 : 0;
   }, [timeRule, combatSeconds, combatMinSeconds]);
 
@@ -285,8 +241,7 @@ export default function App() {
 
   const effectivePenaltyCounts = useMemo(() => {
     const next = { ...penaltyCounts };
-    next.g2_temps_combat =
-      toNumber(next.g2_temps_combat, 0) + autoCombatPenalty;
+    next.g2_temps_combat = toNumber(next.g2_temps_combat, 0) + autoCombatPenalty;
     return next;
   }, [penaltyCounts, autoCombatPenalty]);
 
@@ -300,7 +255,7 @@ export default function App() {
 
   const disqualified = useMemo(() => {
     return PENALTY_PRESETS.some(
-      (p) => p.value === "DQ" && toNumber(effectivePenaltyCounts[p.id], 0) > 0,
+      (p) => p.value === "DQ" && toNumber(effectivePenaltyCounts[p.id], 0) > 0
     );
   }, [effectivePenaltyCounts]);
 
@@ -310,9 +265,7 @@ export default function App() {
     const avancee = phrases.filter((p) => p.difficulty === "avancee");
 
     const avg = (list) =>
-      list.length === 0
-        ? 0
-        : list.reduce((sum, p) => sum + p.note, 0) / list.length;
+      list.length === 0 ? 0 : list.reduce((sum, p) => sum + p.note, 0) / list.length;
 
     const avgSimple = avg(simple);
     const avgComplexe = avg(complexe);
@@ -329,7 +282,7 @@ export default function App() {
       avgAvancee,
       avgWeighted,
       score10,
-      finalScore,
+      finalScore
     };
   }, [phrases, penaltyTotal]);
 
@@ -343,8 +296,8 @@ export default function App() {
       {
         difficulty: nextDifficulty,
         coef,
-        note: noteValue,
-      },
+        note: noteValue
+      }
     ]);
 
     setDifficulty("");
@@ -383,10 +336,10 @@ export default function App() {
               ...p,
               difficulty: nextDifficulty,
               coef,
-              note: noteValue,
+              note: noteValue
             }
-          : p,
-      ),
+          : p
+      )
     );
   }
 
@@ -402,7 +355,7 @@ export default function App() {
       computed,
       { category, duration, combatTime, hits },
       effectivePenaltyCounts,
-      disqualified,
+      disqualified
     );
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -446,10 +399,7 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: authEmail.trim().toLowerCase(),
-          password: authPassword,
-        }),
+        body: JSON.stringify({ email: authEmail.trim().toLowerCase(), password: authPassword })
       });
       if (!res.ok) {
         setAuthError("Identifiants invalides.");
@@ -458,13 +408,10 @@ export default function App() {
       const data = await res.json();
       setAuthToken(data.token);
       setCurrentUser(data.user);
-      localStorage.setItem(
-        AUTH_KEY,
-        JSON.stringify({ token: data.token, user: data.user }),
-      );
+      localStorage.setItem(AUTH_KEY, JSON.stringify({ token: data.token, user: data.user }));
       setAuthEmail("");
       setAuthPassword("");
-      setView("index");
+      setRoute("home");
     } catch {
       setAuthError("Impossible de se connecter.");
     } finally {
@@ -491,10 +438,7 @@ export default function App() {
       const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: newUserEmail.trim(),
-          password: newUserPassword,
-        }),
+        body: JSON.stringify({ email: newUserEmail.trim(), password: newUserPassword })
       });
       if (!res.ok) throw new Error("failed");
       setNewUserEmail("");
@@ -516,7 +460,7 @@ export default function App() {
       const res = await apiFetch(`/api/users/${userId}/password`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: next.trim() }),
+        body: JSON.stringify({ password: next.trim() })
       });
       if (!res.ok) throw new Error("failed");
     } catch {
@@ -526,7 +470,7 @@ export default function App() {
     }
   }
 
-  async function handleCreateCombat() {
+  function handleCreateCombat() {
     setCombatId(null);
     setCombatName("");
     setCombatCategory("");
@@ -536,7 +480,7 @@ export default function App() {
     setCombatTechCode("");
     setNewFencer("");
     setEditingCombatId(null);
-    setView("combat-create");
+    setRoute("combat-create");
   }
 
   async function handleOpenCombat(combat) {
@@ -554,14 +498,12 @@ export default function App() {
       setCombatCategory(combat.category || "");
       setCombatClub(combat.club || "");
       setCombatFencers(
-        typeof combat.fencers === "string"
-          ? JSON.parse(combat.fencers || "[]")
-          : combat.fencers || [],
+        typeof combat.fencers === "string" ? JSON.parse(combat.fencers || "[]") : combat.fencers || []
       );
       setCombatDescription(combat.description || "");
       setCombatTechCode(combat.tech_code || "");
       setCategory(combat.category || "");
-      setView("editor");
+      setRoute("evaluation");
     } catch {
       setIndexStatus("Impossible de charger ce combat.");
     } finally {
@@ -569,21 +511,19 @@ export default function App() {
     }
   }
 
-  async function handleEditCombat(combat) {
+  function handleEditCombat(combat) {
     setCombatId(combat.id);
     setCombatName(combat.name || "");
     setCombatCategory(combat.category || "");
     setCombatClub(combat.club || "");
     setCombatFencers(
-      typeof combat.fencers === "string"
-        ? JSON.parse(combat.fencers || "[]")
-        : combat.fencers || []
+      typeof combat.fencers === "string" ? JSON.parse(combat.fencers || "[]") : combat.fencers || []
     );
     setCombatDescription(combat.description || "");
     setCombatTechCode(combat.tech_code || "");
     setNewFencer("");
     setEditingCombatId(combat.id);
-    setView("combat-create");
+    setRoute("combat-create");
   }
 
   async function handleDeleteCombat(id) {
@@ -591,7 +531,7 @@ export default function App() {
     setIsBusy(true);
     try {
       const res = await apiFetch(`/api/combats/${id}`, {
-        method: "DELETE",
+        method: "DELETE"
       });
       if (!res.ok) throw new Error("failed");
       await loadCombats();
@@ -610,7 +550,7 @@ export default function App() {
       const res = await apiFetch(`/api/combats/${id}/share`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId })
       });
       if (!res.ok) throw new Error("failed");
       setShareTargets((prev) => ({ ...prev, [id]: "" }));
@@ -629,7 +569,7 @@ export default function App() {
       const data = await res.json();
       setShareLists((prev) => ({
         ...prev,
-        [id]: Array.isArray(data.users) ? data.users : [],
+        [id]: Array.isArray(data.users) ? data.users : []
       }));
     } catch {
       // ignore
@@ -644,58 +584,36 @@ export default function App() {
     await loadShares(id);
   };
 
+  const loadCombatEvaluations = async (id) => {
+    try {
+      const res = await apiFetch(`/api/combats/${id}/evaluations`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCombatEvaluations((prev) => ({
+        ...prev,
+        [id]: Array.isArray(data.evaluations) ? data.evaluations : []
+      }));
+    } catch {
+      // ignore
+    }
+  };
+
+  const toggleCombatEvaluations = async (id) => {
+    if (combatEvaluations[id]) {
+      setCombatEvaluations((prev) => ({ ...prev, [id]: null }));
+      return;
+    }
+    await loadCombatEvaluations(id);
+  };
+
   async function handleRevokeShare(id, userId) {
     setIsBusy(true);
     try {
-      const res = await apiFetch(`/api/combats/${id}/share/${userId}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(`/api/combats/${id}/share/${userId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("failed");
       await loadShares(id);
     } catch {
       setIndexStatus("Impossible de retirer ce partage.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function handleFinishNoSave() {
-    if (!confirm("Terminer sans sauvegarder ?")) return;
-    resetEvaluation();
-    setCombatId(null);
-    setCombatName("");
-    setView("index");
-  }
-
-  async function handleFinishSave() {
-    if (!combatId) {
-      alert("Aucun combat selectionne.");
-      return;
-    }
-    setIsBusy(true);
-    try {
-      const evaluation = {
-        phrases,
-        penaltyCounts,
-        duration,
-        combatTime,
-        hits,
-        category,
-        combatName,
-      };
-      const res = await apiFetch(`/api/combats/${combatId}/evaluation`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: combatName.trim(), evaluation }),
-      });
-      if (!res.ok) throw new Error("failed");
-      resetEvaluation();
-      setCombatId(null);
-      setCombatName("");
-      setView("index");
-      await loadCombats();
-    } catch {
-      alert("Echec sauvegarde.");
     } finally {
       setIsBusy(false);
     }
@@ -736,7 +654,7 @@ export default function App() {
       );
       if (!res.ok) throw new Error("failed");
       await loadCombats();
-      setView("index");
+      setRoute("combats");
       setEditingCombatId(null);
     } catch {
       setIndexStatus(editingCombatId ? "Impossible de modifier le combat." : "Impossible de creer le combat.");
@@ -745,479 +663,165 @@ export default function App() {
     }
   }
 
+  async function handleFinishNoSave() {
+    if (!confirm("Terminer sans sauvegarder ?")) return;
+    resetEvaluation();
+    setCombatId(null);
+    setCombatName("");
+    setRoute("combats");
+  }
+
+  async function handleFinishSave() {
+    if (!combatId) {
+      alert("Aucun combat selectionne.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const evaluation = { phrases, penaltyCounts, duration, combatTime, hits, category, combatName };
+      const res = await apiFetch(`/api/combats/${combatId}/evaluation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: combatName.trim(), evaluation })
+      });
+      if (!res.ok) throw new Error("failed");
+      resetEvaluation();
+      setCombatId(null);
+      setCombatName("");
+      setRoute("combats");
+      await loadCombats();
+    } catch {
+      alert("Echec sauvegarde.");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   if (!authToken) {
     return (
-      <div className="page">
-        <header className="header">
-          <div>
-            <p className="kicker">Evaluation technique</p>
-            <h1>Connexion</h1>
-          </div>
-        </header>
-        <section className="card auth-card">
-          <h2>Se connecter</h2>
-          <form className="form" onSubmit={handleLogin}>
-            <label>
-              Email
-              <input
-                type="email"
-                value={authEmail}
-                onChange={(e) => setAuthEmail(e.target.value)}
-                placeholder="admin@balestra.local"
-              />
-            </label>
-            <label>
-              Mot de passe
-              <input
-                type="password"
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                placeholder="Votre mot de passe"
-              />
-            </label>
-            <button type="submit" disabled={isBusy}>
-              Se connecter
-            </button>
-          </form>
-          {authError && <p className="warning">{authError}</p>}
-          <p className="muted">
-            Superadmin par defaut: admin@balestra.local / escrime
-          </p>
-        </section>
-      </div>
+      <LoginPage
+        authEmail={authEmail}
+        authPassword={authPassword}
+        authError={authError}
+        isBusy={isBusy}
+        onEmailChange={setAuthEmail}
+        onPasswordChange={setAuthPassword}
+        onSubmit={handleLogin}
+      />
     );
   }
 
-  if (view === "index") {
-    return (
-      <div className="page">
-        <header className="header">
-          <div>
-            <p className="kicker">Evaluation technique</p>
-            <h1>Combats / spectacles</h1>
-          </div>
-          <div className="header-actions">
-            <button
-              type="button"
-              onClick={handleCreateCombat}
-              disabled={isBusy}
-            >
-              Nouveau combat
-            </button>
-            <button type="button" className="ghost" onClick={handleLogout}>
-              Deconnexion
-            </button>
-          </div>
-        </header>
-
-        {indexStatus && <p className="warning">{indexStatus}</p>}
-
-        <section className="card">
-          {combats.length === 0 ? (
-            <p className="muted">Aucun combat pour le moment.</p>
-          ) : (
-            <div className="grid-list">
-              {combats.map((c) => {
-                const canEdit =
-                  currentUser?.role === "superadmin" ||
-                  c.owner_user_id === currentUser?.id;
-                return (
-                  <div key={c.id} className="grid-row">
-                    <div>
-                      <strong>{c.name || "Sans nom"}</strong>
-                      <div className="muted">
-                        {c.created_at
-                          ? c.created_at.slice(0, 19).replace("T", " ")
-                          : ""}
-                      </div>
-                      {c.tech_code ? (
-                        <div className="muted">Code: {c.tech_code}</div>
-                      ) : null}
-                      {c.is_shared ? (
-                        <span className="badge badge-outline">
-                          Partage avec moi
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="grid-actions">
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => handleOpenCombat(c)}
-                        disabled={isBusy}
-                      >
-                        Noter ce combat
-                      </button>
-                      {canEdit && (
-                        <>
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={() => handleEditCombat(c)}
-                            disabled={isBusy}
-                          >
-                            Editer
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost danger"
-                            onClick={() => handleDeleteCombat(c.id)}
-                            disabled={isBusy}
-                          >
-                            Supprimer
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={() => toggleShares(c.id)}
-                            disabled={isBusy}
-                          >
-                            {shareLists[c.id]
-                              ? "Masquer partages"
-                              : "Voir partages"}
-                          </button>
-                          <div className="share-row">
-                            <select
-                              value={shareTargets[c.id] || ""}
-                              onChange={(e) =>
-                                setShareTargets((prev) => ({
-                                  ...prev,
-                                  [c.id]: e.target.value,
-                                }))
-                              }
-                            >
-                              <option value="">Partager avec...</option>
-                              {shareUsers.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.email}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              className="ghost"
-                              onClick={() => handleShareCombat(c.id)}
-                              disabled={isBusy}
-                            >
-                              Partager
-                            </button>
-                          </div>
-                          {Array.isArray(shareLists[c.id]) &&
-                            shareLists[c.id].length > 0 && (
-                              <div className="share-list">
-                                {shareLists[c.id].map((u) => (
-                                  <div key={u.id} className="share-pill">
-                                    <span>{u.email}</span>
-                                    <button
-                                      type="button"
-                                      className="link"
-                                      onClick={() =>
-                                        handleRevokeShare(c.id, u.id)
-                                      }
-                                    >
-                                      Retirer
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {currentUser?.role === "superadmin" && (
-          <section className="card">
-            <h2>Utilisateurs</h2>
-            <form className="form" onSubmit={handleCreateUser}>
-              <label>
-                Email
-                <input
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="user@exemple.fr"
-                />
-              </label>
-              <label>
-                Mot de passe
-                <input
-                  type="text"
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  placeholder="Mot de passe provisoire"
-                />
-              </label>
-              <button type="submit" disabled={isBusy}>
-                Ajouter l'utilisateur
-              </button>
-            </form>
-            {users.length > 0 && (
-              <div className="user-list">
-                {users.map((u) => (
-                  <div key={u.id} className="user-row">
-                    <span>{u.email}</span>
-                    <div className="user-actions">
-                      <span className="badge">{u.role}</span>
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => handleResetUserPassword(u.id, u.email)}
-                        disabled={isBusy}
-                      >
-                        Reinit mot de passe
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
-      </div>
-    );
-  }
-
-  if (view === "combat-create") {
-    return (
-      <div className="page">
-        <header className="header">
-          <div>
-            <p className="kicker">Evaluation technique</p>
-            <h1>{editingCombatId ? "Modifier le combat" : "Nouveau combat"}</h1>
-          </div>
-          <div className="header-actions">
-            <button
-              className="ghost"
-              type="button"
-              onClick={() => setView("index")}
-              disabled={isBusy}
-            >
-              Retour a l'index
-            </button>
-          </div>
-        </header>
-
-        {indexStatus && <p className="warning">{indexStatus}</p>}
-
-        <section className="card">
-          <form className="form-column" onSubmit={handleCreateCombatSubmit}>
-            <div className="form-group">
-              <label>
-                Nom du combat
-                <input
-                  type="text"
-                  value={combatName}
-                  onChange={(e) => setCombatName(e.target.value)}
-                  placeholder="Ex: La paix des ménages"
-                />
-              </label>
-              <label>
-                Categorie
-                <select
-                  value={combatCategory}
-                  onChange={(e) => setCombatCategory(e.target.value)}
-                >
-                  <option value="">Selectionner</option>
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Club d'escrime
-                <input
-                  type="text"
-                  value={combatClub}
-                  onChange={(e) => setCombatClub(e.target.value)}
-                  placeholder="Ex: Cercle d'escrime"
-                />
-              </label>
-            </div>
-            <div className="form-group">
-              <label>
-                Description
-                <textarea
-                  rows="4"
-                  value={combatDescription}
-                  onChange={(e) => setCombatDescription(e.target.value)}
-                  placeholder="Infos utiles, theme, contexte..."
-                />
-              </label>
-            </div>
-            <div className="form-group">
-              <label>
-                Escrimeurs
-                <div className="inline-field">
-                  <input
-                    type="text"
-                    value={newFencer}
-                    onChange={(e) => setNewFencer(e.target.value)}
-                    placeholder="Nom de l'escrimeur"
-                  />
-                  <button type="button" className="ghost" onClick={addFencer}>
-                    Ajouter
-                  </button>
-                </div>
-                {combatFencers.length > 0 && (
-                  <div className="fencer-list">
-                    {combatFencers.map((f, idx) => (
-                      <div key={`${f}-${idx}`} className="fencer-pill">
-                        <span>{f}</span>
-                        <button
-                          type="button"
-                          className="link"
-                          onClick={() => removeFencer(idx)}
-                        >
-                          Retirer
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </label>
-            </div>
-            <button type="submit" disabled={isBusy}>
-              {editingCombatId ? "Enregistrer les modifications" : "Creer le combat"}
-            </button>
-          </form>
-        </section>
-      </div>
-    );
-  }
+  const canEditCombat = (combat) =>
+    currentUser?.role === "superadmin" || combat.owner_user_id === currentUser?.id;
 
   return (
-    <div className="page">
-      <header className="header">
-        <div>
-          <p className="kicker">Evaluation technique</p>
-          <h1 className="title-inline">
-            <span>{combatName || "Sans nom"}</span>
-            <span className="title-sep">-</span>
-            <span>{getCategoryLabel(category) || "Type"}</span>
-          </h1>
-          <div className="header-meta">
-            <span>
-              <span className="meta-label">Duree</span>
-              {duration || "--:--"}
-            </span>
-            <span>
-              <span className="meta-label">Temps de combat</span>
-              {combatTime || "--:--"}
-            </span>
-            <span>
-              <span className="meta-label">Nombre de coups</span>
-              {hits || "0"}
-            </span>
-            {combatTechCode && (
-              <span>
-                <span className="meta-label">Code</span>
-                {combatTechCode}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="header-actions">
-          <button
-            className="ghost"
-            type="button"
-            onClick={() => setView("index")}
-            disabled={isBusy}
-          >
-            Retour a l'index
-          </button>
-          <button
-            className="ghost"
-            type="button"
-            onClick={() => setIsInfoOpen(true)}
-          >
-            Infos notation
-          </button>
-          <button className="ghost" type="button" onClick={handleReset}>
-            Reinitialiser
-          </button>
-          <button type="button" onClick={handleExport}>
-            Export CSV
-          </button>
-          <button type="button" className="ghost" onClick={handleLogout}>
-            Deconnexion
-          </button>
-        </div>
-      </header>
-
-      <InfoModal isOpen={isInfoOpen} onClose={() => setIsInfoOpen(false)} />
-
-      <ContextSection
-        combatName={combatName}
-        category={category}
-        duration={duration}
-        combatTime={combatTime}
-        hits={hits}
-        onCombatNameChange={setCombatName}
-        onCategoryChange={setCategory}
-        onDurationChange={setDuration}
-        onCombatTimeChange={setCombatTime}
-        onHitsChange={setHits}
-        categoryInfo={categoryInfo}
-        timeRule={timeRule}
-        durationSeconds={durationSeconds}
-        combatSeconds={combatSeconds}
-        perfPenaltyCount={perfPenaltyCount}
-        combatPenaltyAuto={autoCombatPenalty}
-        combatNameLocked
-        categoryLocked
-      />
-
-      <PhraseForm
-        difficulty={difficulty}
-        note={note}
-        onDifficultyClick={handleDifficultyClick}
-        onNoteClick={handleNoteClick}
-      />
-
-      <PhraseTable
-        phrases={phrases}
-        onRemove={handleRemove}
-        onUpdate={handleUpdatePhrase}
-      />
-
-      <Penalties
-        penaltyCounts={penaltyCounts}
-        setPenaltyCounts={setPenaltyCounts}
-        autoCombatPenalty={autoCombatPenalty}
-      />
-
-      <Summary
-        computed={computed}
-        penaltyTotal={penaltyTotal}
-        disqualified={disqualified}
-      />
-
-      <div className="finish-actions">
-        <button
-          type="button"
-          className="ghost"
-          onClick={handleFinishNoSave}
-          disabled={isBusy}
-        >
-          Terminer sans sauvegarder
-        </button>
-        <button
-          type="button"
-          className="primary"
-          onClick={handleFinishSave}
-          disabled={isBusy}
-        >
-          Terminer et sauvegarder
-        </button>
-      </div>
-    </div>
+    <MainLayout
+      currentUser={currentUser}
+      active={route === "combat-create" || route === "evaluation" ? "combats" : route}
+      onNavigate={setRoute}
+      onLogout={handleLogout}
+    >
+      {route === "home" && (
+        <HomePage onCreateCombat={handleCreateCombat} onGoCombats={() => setRoute("combats")} />
+      )}
+      {route === "combats" && (
+        <CombatsPage
+          combats={combats}
+          shareUsers={shareUsers}
+          shareTargets={shareTargets}
+          shareLists={shareLists}
+          combatEvaluations={combatEvaluations}
+          indexStatus={indexStatus}
+          isBusy={isBusy}
+          canEditCombat={canEditCombat}
+          onCreateCombat={handleCreateCombat}
+          onOpenCombat={handleOpenCombat}
+          onEditCombat={handleEditCombat}
+          onDeleteCombat={handleDeleteCombat}
+          onToggleShares={toggleShares}
+          onToggleEvaluations={toggleCombatEvaluations}
+          onShareChange={(id, value) =>
+            setShareTargets((prev) => ({ ...prev, [id]: value }))
+          }
+          onShareCombat={handleShareCombat}
+          onRevokeShare={handleRevokeShare}
+        />
+      )}
+      {route === "combat-create" && (
+        <CombatFormPage
+          isBusy={isBusy}
+          indexStatus={indexStatus}
+          editing={Boolean(editingCombatId)}
+          combatName={combatName}
+          combatCategory={combatCategory}
+          combatClub={combatClub}
+          combatDescription={combatDescription}
+          combatFencers={combatFencers}
+          newFencer={newFencer}
+          onNameChange={setCombatName}
+          onCategoryChange={setCombatCategory}
+          onClubChange={setCombatClub}
+          onDescriptionChange={setCombatDescription}
+          onNewFencerChange={setNewFencer}
+          onAddFencer={addFencer}
+          onRemoveFencer={removeFencer}
+          onSubmit={handleCreateCombatSubmit}
+          onBack={() => setRoute("combats")}
+        />
+      )}
+      {route === "evaluation" && (
+        <EvaluationPage
+          combatName={combatName}
+          combatTechCode={combatTechCode}
+          category={category}
+          duration={duration}
+          combatTime={combatTime}
+          hits={hits}
+          onCategoryChange={setCategory}
+          onDurationChange={setDuration}
+          onCombatTimeChange={setCombatTime}
+          onHitsChange={setHits}
+          categoryInfo={categoryInfo}
+          timeRule={timeRule}
+          durationSeconds={durationSeconds}
+          combatSeconds={combatSeconds}
+          perfPenaltyCount={perfPenaltyCount}
+          autoCombatPenalty={autoCombatPenalty}
+          difficulty={difficulty}
+          note={note}
+          onDifficultyClick={handleDifficultyClick}
+          onNoteClick={handleNoteClick}
+          phrases={phrases}
+          onRemovePhrase={handleRemove}
+          onUpdatePhrase={handleUpdatePhrase}
+          penaltyCounts={penaltyCounts}
+          setPenaltyCounts={setPenaltyCounts}
+          computed={computed}
+          penaltyTotal={penaltyTotal}
+          disqualified={disqualified}
+          isInfoOpen={isInfoOpen}
+          onOpenInfo={() => setIsInfoOpen(true)}
+          onCloseInfo={() => setIsInfoOpen(false)}
+          onReset={handleReset}
+          onExport={handleExport}
+          onFinishNoSave={handleFinishNoSave}
+          onFinishSave={handleFinishSave}
+          isBusy={isBusy}
+          onBack={() => setRoute("combats")}
+        />
+      )}
+      {route === "users" && currentUser?.role === "superadmin" && (
+        <UsersPage
+          users={users}
+          newUserEmail={newUserEmail}
+          newUserPassword={newUserPassword}
+          isBusy={isBusy}
+          onEmailChange={setNewUserEmail}
+          onPasswordChange={setNewUserPassword}
+          onCreateUser={handleCreateUser}
+          onResetPassword={handleResetUserPassword}
+        />
+      )}
+    </MainLayout>
   );
 }

@@ -30,6 +30,82 @@ body {
   );
 }
 
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--c-border);
+  box-shadow: 0 6px 18px rgba(11, 45, 92, 0.08);
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-brand {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-blue);
+}
+
+.topbar-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--c-blue);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.nav-btn:hover {
+  transform: none;
+  box-shadow: none;
+  background: #eef2f8;
+}
+
+.nav-btn.active {
+  background: var(--c-blue);
+  color: white;
+}
+
+.topbar-user {
+  font-size: 13px;
+  color: var(--c-muted);
+}
+
 .page {
   max-width: 1100px;
   margin: 0 auto;
@@ -122,6 +198,11 @@ h2 {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   align-items: end;
+}
+
+.form-column {
+  display: grid;
+  gap: 16px;
 }
 
 .form-inline {
@@ -396,6 +477,25 @@ th {
   font-size: 12px;
 }
 
+.note-list {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.note-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--c-chip);
+  border-radius: 10px;
+  border: 1px dashed var(--c-border);
+  font-size: 12px;
+}
+
 .fencer-list {
   display: grid;
   gap: 6px;
@@ -612,6 +712,24 @@ th {
 .penalty-meta {
   margin-left: 8px;
   display: inline-block;
+}
+
+.topbar .nav-btn {
+  background: transparent;
+  color: var(--c-blue);
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+
+.topbar .nav-btn:hover {
+  transform: none;
+  box-shadow: none;
+  background: #eef2f8;
+}
+
+.topbar .nav-btn.active {
+  background: var(--c-blue);
+  color: white;
 }
 
 @media (max-width: 720px) {
