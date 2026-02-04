@@ -103,6 +103,12 @@ export default function App() {
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [sessionType, setSessionType] = useState("technique");
+  const [pendingActionPenalties, setPendingActionPenalties] = useState({
+    g1_mal_maitrisee: 0,
+    g1_sortie: 0,
+    g2_dangereuse: 0,
+    g3_blessure: 0
+  });
   const [artisticScores, setArtisticScores] = useState({
     scenario: "",
     mise_en_scene: "",
@@ -321,6 +327,12 @@ export default function App() {
     const difficultyMeta = DIFFICULTIES.find((d) => d.value === nextDifficulty);
     const coef = difficultyMeta?.coef ?? 1;
     const noteValue = Math.min(5, Math.max(0, toNumber(nextNote, 0)));
+    const nextActionPenalties = {
+      g1_mal_maitrisee: toNumber(pendingActionPenalties.g1_mal_maitrisee, 0),
+      g1_sortie: toNumber(pendingActionPenalties.g1_sortie, 0),
+      g2_dangereuse: toNumber(pendingActionPenalties.g2_dangereuse, 0),
+      g3_blessure: toNumber(pendingActionPenalties.g3_blessure, 0)
+    };
 
     setPhrases((prev) => [
       ...prev,
@@ -328,13 +340,25 @@ export default function App() {
         difficulty: nextDifficulty,
         coef,
         note: noteValue,
-        actionPenalties: {
-          g1_mal_maitrisee: 0,
-          g1_sortie: 0,
-          g2_dangereuse: 0
-        }
+        actionPenalties: nextActionPenalties
       }
     ]);
+
+    setPenaltyCounts((prev) => {
+      const next = { ...prev };
+      Object.entries(nextActionPenalties).forEach(([penaltyId, count]) => {
+        if (!count) return;
+        next[penaltyId] = toNumber(next[penaltyId], 0) + count;
+      });
+      return next;
+    });
+
+    setPendingActionPenalties({
+      g1_mal_maitrisee: 0,
+      g1_sortie: 0,
+      g2_dangereuse: 0,
+      g3_blessure: 0
+    });
 
     setDifficulty("");
     setNote("");
@@ -455,6 +479,29 @@ export default function App() {
       performance_corporelle: "",
       occupation_espace: ""
     });
+    setPendingActionPenalties({
+      g1_mal_maitrisee: 0,
+      g1_sortie: 0,
+      g2_dangereuse: 0,
+      g3_blessure: 0
+    });
+  }
+
+  function handleAdjustPendingActionPenalty(penaltyId, delta) {
+    if (penaltyId === "reset") {
+      setPendingActionPenalties({
+        g1_mal_maitrisee: 0,
+        g1_sortie: 0,
+        g2_dangereuse: 0,
+        g3_blessure: 0
+      });
+      return;
+    }
+    if (!penaltyId || !delta) return;
+    setPendingActionPenalties((prev) => ({
+      ...prev,
+      [penaltyId]: Math.max(0, toNumber(prev[penaltyId], 0) + delta)
+    }));
   }
 
   function applyEvaluation(evalData) {
@@ -1139,6 +1186,8 @@ export default function App() {
           note={note}
           onDifficultyClick={handleDifficultyClick}
           onNoteClick={handleNoteClick}
+          pendingActionPenalties={pendingActionPenalties}
+          onAdjustPendingActionPenalty={handleAdjustPendingActionPenalty}
           phrases={phrases}
           onRemovePhrase={handleRemove}
           onUpdatePhrase={handleUpdatePhrase}

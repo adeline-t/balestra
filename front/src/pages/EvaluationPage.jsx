@@ -38,6 +38,8 @@ export default function EvaluationPage({
   note,
   onDifficultyClick,
   onNoteClick,
+  pendingActionPenalties,
+  onAdjustPendingActionPenalty,
   phrases,
   onRemovePhrase,
   onUpdatePhrase,
@@ -154,6 +156,8 @@ export default function EvaluationPage({
         note={note}
         onDifficultyClick={onDifficultyClick}
         onNoteClick={onNoteClick}
+        pendingActionPenalties={pendingActionPenalties}
+        onAdjustPendingActionPenalty={onAdjustPendingActionPenalty}
       />
 
       <PhraseTable

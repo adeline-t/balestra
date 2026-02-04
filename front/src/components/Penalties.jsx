@@ -1,17 +1,48 @@
-import React from "react";
+import React, { useState } from "react";
+import {
+  FaExclamationTriangle,
+  FaHandPaper,
+  FaInfoCircle,
+  FaMedkit,
+  FaSignOutAlt
+} from "react-icons/fa";
 import { PENALTY_PRESETS, formatNumber, toNumber } from "../data/rules.js";
+
+const ACTION_ICON = {
+  g1_mal_maitrisee: <FaHandPaper />,
+  g1_sortie: <FaSignOutAlt />,
+  g2_dangereuse: <FaExclamationTriangle />,
+  g3_blessure: <FaMedkit />
+};
 
 export default function Penalties({
   penaltyCounts,
   setPenaltyCounts,
   autoCombatPenalty,
 }) {
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const total = getTotal(penaltyCounts, autoCombatPenalty);
+  const actionPenalties = PENALTY_PRESETS.filter((p) => p.scope === "action");
 
   return (
     <section className="card">
       <details className="details">
-        <summary>Penalites</summary>
+        <summary>
+          Penalites
+          <button
+            type="button"
+            className="info-icon"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setIsInfoOpen(true);
+            }}
+            aria-label="Informations penalites"
+            title="Informations penalites"
+          >
+            <FaInfoCircle />
+          </button>
+        </summary>
         <div className="penalties">
           {PENALTY_PRESETS.map((p) => {
             if (p.scope === "action") return null;
@@ -111,6 +142,39 @@ export default function Penalties({
           </div>
         </div>
       </details>
+      {isInfoOpen && (
+        <div className="modal-backdrop" onClick={() => setIsInfoOpen(false)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Informations penalites</h2>
+              <button className="link" type="button" onClick={() => setIsInfoOpen(false)}>
+                Fermer
+              </button>
+            </div>
+            <div className="modal-body">
+              <h3>Icônes des penalites d'action</h3>
+              <ul>
+                {actionPenalties.map((p) => (
+                  <li key={p.id}>
+                    <span className="action-icon">{ACTION_ICON[p.id]}</span>
+                    <strong>{p.label}</strong> : {p.description}
+                  </li>
+                ))}
+              </ul>
+
+              <h3>Signification des penalites</h3>
+              <ul>
+                {PENALTY_PRESETS.map((p) => (
+                  <li key={p.id}>
+                    <strong>{p.label}</strong>{" "}
+                    {p.value === "DQ" ? "(disqualificatif)" : `(-${p.value})`} : {p.description}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

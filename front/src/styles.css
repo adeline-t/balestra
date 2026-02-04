@@ -113,7 +113,7 @@ body {
 }
 
 .page {
-  max-width: 1100px;
+  max-width: 90%;
   margin: 0 auto;
   padding: 40px 24px 64px;
   display: grid;
@@ -219,6 +219,7 @@ h2 {
   display: flex;
   gap: 16px;
   align-items: center;
+  justify-content: space-between;
 }
 
 .inline-field {
@@ -250,7 +251,10 @@ label {
   border-radius: 12px;
   font-weight: 600;
   box-shadow: none;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .difficulty-btn span {
@@ -314,7 +318,9 @@ button {
   color: white;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 button:hover {
@@ -618,7 +624,10 @@ th {
   border: 1px solid rgba(15, 21, 37, 0.18);
   background: #ffffff;
   color: var(--c-blue);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
   padding: 0;
 }
 
@@ -656,6 +665,10 @@ th {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.action-buttons .badge {
+  margin-left: 6px;
 }
 
 .action-cell-inline {
@@ -699,6 +712,16 @@ th {
   padding: 0;
   display: inline-flex;
   align-items: center;
+}
+
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--c-blue);
+  margin-right: 6px;
 }
 
 .info-wrap {
