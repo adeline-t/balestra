@@ -54,7 +54,7 @@ export default function CombatFormPage({
           <label>
             Competition
             <select value={competitionId || ""} onChange={(e) => onCompetitionChange(e.target.value)}>
-              <option value="">Selectionner</option>
+              <option value="">Hors competition</option>
               {competitions.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
