@@ -983,6 +983,16 @@ th {
   margin: 0;
 }
 
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
 .user-list {
   margin-top: 16px;
   display: grid;

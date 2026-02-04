@@ -71,3 +71,4 @@ Ce projet est distribué sous licence **GNU GPL v3**. Toute modification distrib
 ## Contact
 
 Pour les questions et autres remarques, l'adresse **balestra.k3qcbu@bumpmail.io** est disponible.
+Vous pouvez aussi ouvrir une discussion ou une issue sur le dépôt du projet : https://github.com/adeline-t/balestra.

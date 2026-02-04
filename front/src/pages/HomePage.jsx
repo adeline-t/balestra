@@ -32,6 +32,12 @@ export default function HomePage({ onCreateCombat, onGoCombats }) {
             </a>
             .
           </p>
+          <p>
+            Vous pouvez aussi ouvrir une discussion ou une issue sur le dépôt du projet :{" "}
+            <a href="https://github.com/adeline-t/balestra" className="ghost link-btn">
+              Acceder au depot GitHub
+            </a>
+          </p>
         </div>
       </section>
     </div>
