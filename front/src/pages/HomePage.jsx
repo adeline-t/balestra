@@ -25,8 +25,18 @@ export default function HomePage({
       <section className="card">
         <h2>Bienvenue</h2>
         <p className="muted">
-          Crée un combat, partage-le aux jurés, puis chaque juré saisit sa notation. Une seule note par
-          combat et par juré.
+          Balestra est une application de notation pour les competitions d’escrime artistique.
+          Elle permet de creer des competitions, d’ajouter des utilisateurs avec des roles
+          (administrateurs, jury, technique), puis de creer les combats associes.
+        </p>
+        <p className="muted">
+          Chaque juré saisit ses notations sur deux sessions (Programme Technique et Programme
+          Libre). Les penalites sont gerees (globales et d’action) avec validation par majorite,
+          et les resultats peuvent etre calcules et exportes (CSV/PDF).
+        </p>
+        <p className="muted">
+          Vous pouvez aussi realiser des notations rapides hors competition, sans sauvegarde,
+          uniquement pour export.
         </p>
         <div className="info-box">
           <strong>Contact</strong>

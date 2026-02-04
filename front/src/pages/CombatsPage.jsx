@@ -15,10 +15,13 @@ export default function CombatsPage({
   combatEvaluations,
   myEvaluationsMap,
   currentUser,
+  competitions,
+  activeCompetitionId,
   indexStatus,
   isBusy,
   canEditCombat,
   onCreateCombat,
+  onCreateCombatInCompetition,
   onOpenCombatTechnique,
   onOpenCombatLibre,
   onOpenFinalScores,
@@ -57,12 +60,20 @@ export default function CombatsPage({
       <header className="header">
         <div>
           <p className="kicker">Evaluation technique</p>
-          <h1>Combats / spectacles</h1>
+          <h1>
+            {activeCompetitionId ? "Combats de la competition" : "Combats hors competition"}
+          </h1>
         </div>
         <div className="header-actions">
-          <button type="button" onClick={onCreateCombat} disabled={isBusy}>
-            Nouveau combat
-          </button>
+          {activeCompetitionId ? (
+            <button type="button" onClick={() => onCreateCombatInCompetition(activeCompetitionId)} disabled={isBusy}>
+              Nouveau combat (competition)
+            </button>
+          ) : (
+            <button type="button" onClick={onCreateCombat} disabled={isBusy}>
+              Nouveau combat (hors competition)
+            </button>
+          )}
         </div>
       </header>
 
@@ -73,11 +84,29 @@ export default function CombatsPage({
           <p className="muted">Aucun combat pour le moment.</p>
         ) : (
           <div className="combat-list">
-            {combats.map((c) => {
+            {Object.entries(
+              combats
+                .filter((c) =>
+                  activeCompetitionId
+                    ? String(c.competition_id) === String(activeCompetitionId)
+                    : !c.competition_id
+                )
+                .reduce((acc, c) => {
+                  const key = c.category || "Sans categorie";
+                  if (!acc[key]) acc[key] = [];
+                  acc[key].push(c);
+                  return acc;
+                }, {})
+            ).map(([category, list]) => (
+              <div key={category} className="category-block">
+                <h3 className="category-title">{category}</h3>
+                {list.map((c) => {
               const canEdit = canEditCombat(c);
               const myMap = myEvaluationsMap?.[String(c.id)];
               const techDone = myMap?.technique;
               const libreDone = myMap?.libre;
+              const competitionName =
+                competitions?.find((comp) => String(comp.id) === String(c.competition_id))?.name || "—";
               return (
                 <div key={c.id} className="combat-card">
                   <div className="combat-row combat-header">
@@ -114,6 +143,9 @@ export default function CombatsPage({
                         </span>
                       </div>
                       <div className="combat-subline">
+                        <span className="muted">Competition : {competitionName}</span>
+                      </div>
+                      <div className="combat-subline">
                         <span className="muted">Club : {c.club || "—"}</span>
                       </div>
                       <div className="muted">
@@ -140,7 +172,7 @@ export default function CombatsPage({
                       >
                         {libreDone ? "Deja note" : "Noter programme libre"}
                       </button>
-                      {canEdit && (
+                      {canEdit && !activeCompetitionId && (
                         <button
                           type="button"
                           className="icon-btn"
@@ -213,7 +245,7 @@ export default function CombatsPage({
                     </div>
                   )}
 
-                  {canEdit && (
+                  {canEdit && !activeCompetitionId && (
                     <details className="action-menu">
                       <summary>Actions admin</summary>
                       <div className="action-menu-body">
@@ -250,11 +282,13 @@ export default function CombatsPage({
                 </div>
               );
             })}
+              </div>
+            ))}
           </div>
         )}
       </section>
 
-      {shareModalId && (
+      {!activeCompetitionId && shareModalId && (
         <div className="modal-backdrop" onClick={closeShareModal}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">

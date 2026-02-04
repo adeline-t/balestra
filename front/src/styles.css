@@ -541,6 +541,11 @@ th {
   gap: 10px;
 }
 
+.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .action-menu-body .ghost {
   display: inline-flex;
   align-items: center;
@@ -557,6 +562,19 @@ th {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.category-block {
+  display: grid;
+  gap: 12px;
+}
+
+.category-title {
+  margin: 0;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-blue);
 }
 
 .grid-row {
@@ -1057,6 +1075,13 @@ th {
 
 .info-box p {
   margin: 0;
+}
+
+.steps-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
 }
 
 .loading-row {

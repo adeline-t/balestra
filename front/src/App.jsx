@@ -9,6 +9,8 @@ import UsersPage from "./pages/UsersPage.jsx";
 import AccountPage from "./pages/AccountPage.jsx";
 import FinalScorePage from "./pages/FinalScorePage.jsx";
 import ResultsPage from "./pages/ResultsPage.jsx";
+import CompetitionsPage from "./pages/CompetitionsPage.jsx";
+import CompetitionFormPage from "./pages/CompetitionFormPage.jsx";
 import {
   DIFFICULTIES,
   PENALTY_PRESETS,
@@ -76,6 +78,7 @@ export default function App() {
   const [combatName, setCombatName] = useState("");
   const [combatId, setCombatId] = useState(null);
   const [combatCategory, setCombatCategory] = useState("");
+  const [combatCompetitionId, setCombatCompetitionId] = useState("");
   const [combatClub, setCombatClub] = useState("");
   const [combatFencers, setCombatFencers] = useState([]);
   const [combatDescription, setCombatDescription] = useState("");
@@ -84,6 +87,18 @@ export default function App() {
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [route, setRoute] = useState("home");
   const [isSandbox, setIsSandbox] = useState(false);
+  const [competitions, setCompetitions] = useState([]);
+  const [competitionId, setCompetitionId] = useState(null);
+  const [competitionName, setCompetitionName] = useState("");
+  const [competitionStart, setCompetitionStart] = useState("");
+  const [competitionEnd, setCompetitionEnd] = useState("");
+  const [competitionDescription, setCompetitionDescription] = useState("");
+  const [competitionLink, setCompetitionLink] = useState("");
+  const [competitionRoles, setCompetitionRoles] = useState({ admin: [], jury: [], technique: [] });
+  const [competitionRole, setCompetitionRole] = useState("admin");
+  const [competitionUserId, setCompetitionUserId] = useState("");
+  const [competitionStatus, setCompetitionStatus] = useState("");
+  const [activeCompetitionId, setActiveCompetitionId] = useState(null);
   const [editingCombatId, setEditingCombatId] = useState(null);
   const [combats, setCombats] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
@@ -203,6 +218,11 @@ export default function App() {
       }
     };
     verify();
+  }, [authToken]);
+
+  useEffect(() => {
+    if (!authToken) return;
+    loadCompetitions();
   }, [authToken]);
 
   useEffect(() => {
@@ -734,6 +754,218 @@ export default function App() {
     }
   }
 
+  const loadCompetitions = async () => {
+    try {
+      const res = await apiFetch("/api/competitions");
+      if (!res.ok) return;
+      const data = await res.json();
+      setCompetitions(Array.isArray(data.competitions) ? data.competitions : []);
+    } catch {
+      // ignore
+    }
+  };
+
+  const resetCompetitionForm = () => {
+    setCompetitionId(null);
+    setCompetitionName("");
+    setCompetitionStart("");
+    setCompetitionEnd("");
+    setCompetitionDescription("");
+    setCompetitionLink("");
+    setCompetitionRoles({ admin: [], jury: [], technique: [] });
+    setCompetitionRole("admin");
+    setCompetitionUserId("");
+    setCompetitionStatus("");
+  };
+
+  const loadCompetitionRoles = async (id) => {
+    try {
+      const res = await apiFetch(`/api/competitions/${id}/roles`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const next = { admin: [], jury: [], technique: [] };
+      (data.users || []).forEach((u) => {
+        if (!next[u.role]) next[u.role] = [];
+        next[u.role].push(u);
+      });
+      setCompetitionRoles(next);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleCreateCompetition = async () => {
+    resetCompetitionForm();
+    setRoute("competition-create");
+    await loadShareUsers();
+  };
+
+  const handleEditCompetition = async (c) => {
+    setCompetitionId(c.id);
+    setCompetitionName(c.name || "");
+    setCompetitionStart(c.start_date || "");
+    setCompetitionEnd(c.end_date || "");
+    setCompetitionDescription(c.description || "");
+    setCompetitionLink(c.link || "");
+    setCompetitionStatus("");
+    await loadShareUsers();
+    await loadCompetitionRoles(c.id);
+    setRoute("competition-create");
+  };
+
+  const handleViewCompetitionCombats = async (competition) => {
+    setActiveCompetitionId(competition.id);
+    setRoute("competition-combats");
+  };
+
+  const handleCreateCombatInCompetition = (competitionId) => {
+    setCombatCompetitionId(String(competitionId));
+    setEditingCombatId(null);
+    setCombatId(null);
+    setCombatName("");
+    setCombatCategory("");
+    setCombatClub("");
+    setCombatFencers([]);
+    setCombatDescription("");
+    setCombatTechCode("");
+    setNewFencer("");
+    setRoute("combat-create");
+  };
+
+  const handleDeleteCompetition = async (id) => {
+    if (!confirm("Supprimer cette competition ?")) return;
+    setIsBusy(true);
+    try {
+      const res = await apiFetch(`/api/competitions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("failed");
+      await loadCompetitions();
+    } catch {
+      setIndexStatus("Impossible de supprimer la competition.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleSaveCompetition = async (event) => {
+    event.preventDefault();
+    if (!competitionName.trim() || !competitionStart || !competitionEnd) return;
+    setIsBusy(true);
+    setCompetitionStatus("");
+    try {
+      const payload = {
+        name: competitionName.trim(),
+        start_date: competitionStart,
+        end_date: competitionEnd,
+        description: competitionDescription.trim(),
+        link: competitionLink.trim()
+      };
+      const res = await apiFetch(
+        competitionId ? `/api/competitions/${competitionId}` : "/api/competitions",
+        {
+          method: competitionId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      const id = competitionId || data.id;
+      if (id) await loadCompetitionRoles(id);
+      await loadCompetitions();
+      if (!competitionId && id) {
+        setCompetitionId(id);
+        setCompetitionStatus("Competition enregistree. Vous pouvez maintenant ajouter les utilisateurs.");
+      } else {
+        setCompetitionStatus("Competition mise a jour.");
+      }
+    } catch {
+      setCompetitionStatus("Impossible de sauvegarder la competition.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const ensureCompetitionSaved = async () => {
+    if (competitionId) return competitionId;
+    if (!competitionName.trim() || !competitionStart || !competitionEnd) {
+      setCompetitionStatus("Renseignez nom, date de debut et date de fin avant d'ajouter des utilisateurs.");
+      return null;
+    }
+    try {
+      const payload = {
+        name: competitionName.trim(),
+        start_date: competitionStart,
+        end_date: competitionEnd,
+        description: competitionDescription.trim(),
+        link: competitionLink.trim()
+      };
+      const res = await apiFetch("/api/competitions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error("failed");
+      const data = await res.json();
+      if (data.id) {
+        setCompetitionId(data.id);
+        await loadCompetitionRoles(data.id);
+        await loadCompetitions();
+        setCompetitionStatus("Competition enregistree. Vous pouvez maintenant ajouter les utilisateurs.");
+        return data.id;
+      }
+      return null;
+    } catch {
+      setCompetitionStatus("Impossible de sauvegarder la competition.");
+      return null;
+    }
+  };
+
+  const handleAddCompetitionRole = async () => {
+    if (!competitionUserId) return;
+    let id = competitionId;
+    if (!id) {
+      id = await ensureCompetitionSaved();
+      if (!id) return;
+    }
+    if (!id) {
+      setCompetitionStatus("Enregistrez d'abord la competition avant d'ajouter des utilisateurs.");
+      return;
+    }
+    setIsBusy(true);
+    try {
+      const res = await apiFetch(`/api/competitions/${id}/roles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: competitionUserId, role: competitionRole })
+      });
+      if (!res.ok) throw new Error("failed");
+      await loadCompetitionRoles(id);
+      setCompetitionUserId("");
+    } catch {
+      setIndexStatus("Impossible d'ajouter l'utilisateur.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleRemoveCompetitionRole = async (userId, role) => {
+    if (!competitionId) return;
+    setIsBusy(true);
+    try {
+      const res = await apiFetch(`/api/competitions/${competitionId}/roles`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, role })
+      });
+      if (!res.ok) throw new Error("failed");
+      await loadCompetitionRoles(competitionId);
+    } catch {
+      setIndexStatus("Impossible de retirer l'utilisateur.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   async function handleCreateUser(event) {
     event.preventDefault();
     if (!newUserEmail.trim() || !newUserPassword.trim()) return;
@@ -784,6 +1016,7 @@ export default function App() {
   function handleCreateCombat() {
     setCombatId(null);
     setCombatName("");
+    setCombatCompetitionId("");
     setCombatCategory("");
     setCombatClub("");
     setCombatFencers([]);
@@ -809,6 +1042,7 @@ export default function App() {
       setCombatId(combat.id);
       setCombatName(combat.name);
       setCombatCategory(combat.category || "");
+      setCombatCompetitionId(combat.competition_id || "");
       setCombatClub(combat.club || "");
       setCombatFencers(
         typeof combat.fencers === "string" ? JSON.parse(combat.fencers || "[]") : combat.fencers || []
@@ -892,6 +1126,7 @@ export default function App() {
   function handleEditCombat(combat) {
     setCombatId(combat.id);
     setCombatName(combat.name || "");
+    setCombatCompetitionId(combat.competition_id || "");
     setCombatCategory(combat.category || "");
     setCombatClub(combat.club || "");
     setCombatFencers(
@@ -1018,6 +1253,7 @@ export default function App() {
       const payload = {
         name: combatName.trim(),
         category: combatCategory.trim(),
+        competition_id: combatCompetitionId ? Number(combatCompetitionId) : null,
         club: combatClub.trim(),
         description: combatDescription.trim(),
         fencers: combatFencers
@@ -1155,11 +1391,24 @@ export default function App() {
   const canEditCombat = (combat) =>
     currentUser?.role === "superadmin" || combat.owner_user_id === currentUser?.id;
 
+  const handleNavigate = (next) => {
+    if (next === "combats") {
+      setActiveCompetitionId(null);
+    }
+    setRoute(next);
+  };
+
   return (
     <MainLayout
       currentUser={currentUser}
-      active={route === "combat-create" || route === "evaluation" ? "combats" : route}
-      onNavigate={setRoute}
+      active={
+        route === "combat-create" || route === "evaluation"
+          ? "combats"
+          : route === "competition-create"
+            ? "competitions"
+            : route
+      }
+      onNavigate={handleNavigate}
       onLogout={handleLogout}
     >
       {route === "home" && (
@@ -1179,6 +1428,44 @@ export default function App() {
           status={accountStatus}
         />
       )}
+      {route === "competitions" && (
+        <CompetitionsPage
+          competitions={competitions}
+          isBusy={isBusy}
+          onCreate={handleCreateCompetition}
+          onEdit={handleEditCompetition}
+          onDelete={handleDeleteCompetition}
+          onViewCombats={handleViewCompetitionCombats}
+        />
+      )}
+      {route === "competition-create" && (
+        <CompetitionFormPage
+          editing={Boolean(competitionId)}
+          isBusy={isBusy}
+          competitionName={competitionName}
+          competitionStart={competitionStart}
+          competitionEnd={competitionEnd}
+          competitionDescription={competitionDescription}
+          competitionLink={competitionLink}
+          users={shareUsers}
+          roles={competitionRoles}
+          status={competitionStatus}
+          competitionId={competitionId}
+          selectedRole={competitionRole}
+          selectedUserId={competitionUserId}
+          onNameChange={setCompetitionName}
+          onStartChange={setCompetitionStart}
+          onEndChange={setCompetitionEnd}
+          onDescriptionChange={setCompetitionDescription}
+          onLinkChange={setCompetitionLink}
+          onRoleChange={setCompetitionRole}
+          onUserSelect={setCompetitionUserId}
+          onAddRoleUser={handleAddCompetitionRole}
+          onRemoveRoleUser={handleRemoveCompetitionRole}
+          onSubmit={handleSaveCompetition}
+          onBack={() => setRoute("competitions")}
+        />
+      )}
       {route === "combats" && (
         <CombatsPage
           combats={combats}
@@ -1188,10 +1475,45 @@ export default function App() {
           combatEvaluations={combatEvaluations}
           myEvaluationsMap={myEvaluationsMap}
           currentUser={currentUser}
+          competitions={competitions}
+          activeCompetitionId={null}
           indexStatus={indexStatus}
           isBusy={isBusy}
           canEditCombat={canEditCombat}
           onCreateCombat={handleCreateCombat}
+          onCreateCombatInCompetition={handleCreateCombatInCompetition}
+          onOpenCombatTechnique={handleOpenCombatTechnique}
+          onOpenCombatLibre={handleOpenCombatLibre}
+          onOpenFinalScores={handleOpenFinalScores}
+          onOpenResults={handleOpenResults}
+          onEditCombat={handleEditCombat}
+          onDeleteCombat={handleDeleteCombat}
+          onToggleShares={toggleShares}
+          onLoadShares={loadShares}
+          onToggleEvaluations={toggleCombatEvaluations}
+          onShareChange={(id, value) =>
+            setShareTargets((prev) => ({ ...prev, [id]: value }))
+          }
+          onShareCombat={handleShareCombat}
+          onRevokeShare={handleRevokeShare}
+        />
+      )}
+      {route === "competition-combats" && (
+        <CombatsPage
+          combats={combats}
+          shareUsers={shareUsers}
+          shareTargets={shareTargets}
+          shareLists={shareLists}
+          combatEvaluations={combatEvaluations}
+          myEvaluationsMap={myEvaluationsMap}
+          currentUser={currentUser}
+          competitions={competitions}
+          activeCompetitionId={activeCompetitionId}
+          indexStatus={indexStatus}
+          isBusy={isBusy}
+          canEditCombat={canEditCombat}
+          onCreateCombat={handleCreateCombat}
+          onCreateCombatInCompetition={handleCreateCombatInCompetition}
           onOpenCombatTechnique={handleOpenCombatTechnique}
           onOpenCombatLibre={handleOpenCombatLibre}
           onOpenFinalScores={handleOpenFinalScores}
@@ -1215,12 +1537,15 @@ export default function App() {
           editing={Boolean(editingCombatId)}
           combatName={combatName}
           combatCategory={combatCategory}
+          competitionId={combatCompetitionId}
+          competitions={competitions}
           combatClub={combatClub}
           combatDescription={combatDescription}
           combatFencers={combatFencers}
           newFencer={newFencer}
           onNameChange={setCombatName}
           onCategoryChange={setCombatCategory}
+          onCompetitionChange={setCombatCompetitionId}
           onClubChange={setCombatClub}
           onDescriptionChange={setCombatDescription}
           onNewFencerChange={setNewFencer}

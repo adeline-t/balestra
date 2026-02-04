@@ -22,6 +22,13 @@ export default function MainLayout({ currentUser, active, onNavigate, onLogout, 
             >
               Combats
             </button>
+            <button
+              type="button"
+              className={active === "competitions" ? "nav-btn active" : "nav-btn"}
+              onClick={() => onNavigate("competitions")}
+            >
+              Competitions
+            </button>
             {currentUser?.role === "superadmin" && (
               <button
                 type="button"

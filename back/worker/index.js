@@ -130,24 +130,55 @@ const requireAuth = async (request, env) => {
 
 const isSuperAdmin = (user) => user && user.role === "superadmin";
 
-const hasCombatAccess = async (env, combatId, user) => {
+const hasCompetitionAdmin = async (env, competitionId, user) => {
   if (isSuperAdmin(user)) return true;
   const row = await env.balestra_db
     .prepare(
-      "SELECT c.id FROM combats c LEFT JOIN combat_shares s ON s.combat_id = c.id AND s.user_id = ?2 WHERE c.id = ?1 AND (c.owner_user_id = ?2 OR s.user_id = ?2)"
+      "SELECT 1 as ok FROM competition_users WHERE competition_id = ?1 AND user_id = ?2 AND role = 'admin'"
     )
-    .bind(combatId, user.id)
+    .bind(competitionId, user.id)
     .first();
   return !!row;
+};
+
+const hasCombatAccess = async (env, combatId, user) => {
+  if (isSuperAdmin(user)) return true;
+  const row = await env.balestra_db
+    .prepare("SELECT owner_user_id, competition_id FROM combats WHERE id = ?1")
+    .bind(combatId)
+    .first();
+  if (!row) return false;
+  if (row.owner_user_id === user.id) return true;
+  if (row.competition_id) {
+    const roleRow = await env.balestra_db
+      .prepare("SELECT 1 as ok FROM competition_users WHERE competition_id = ?1 AND user_id = ?2")
+      .bind(row.competition_id, user.id)
+      .first();
+    if (roleRow) return true;
+  }
+  const shareRow = await env.balestra_db
+    .prepare("SELECT 1 as ok FROM combat_shares WHERE combat_id = ?1 AND user_id = ?2")
+    .bind(combatId, user.id)
+    .first();
+  return !!shareRow;
 };
 
 const canEditCombat = async (env, combatId, user) => {
   if (isSuperAdmin(user)) return true;
   const row = await env.balestra_db
-    .prepare("SELECT id FROM combats WHERE id = ?1 AND owner_user_id = ?2")
-    .bind(combatId, user.id)
+    .prepare("SELECT owner_user_id, competition_id FROM combats WHERE id = ?1")
+    .bind(combatId)
     .first();
-  return !!row;
+  if (!row) return false;
+  if (row.owner_user_id === user.id) return true;
+  if (!row.competition_id) return false;
+  const roleRow = await env.balestra_db
+    .prepare(
+      "SELECT 1 as ok FROM competition_users WHERE competition_id = ?1 AND user_id = ?2 AND role = 'admin'"
+    )
+    .bind(row.competition_id, user.id)
+    .first();
+  return !!roleRow;
 };
 
 export default {
@@ -241,6 +272,178 @@ export default {
       return jsonResponse({ users: results });
     }
 
+    if (url.pathname === "/api/competitions" && request.method === "GET") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const { results } = await env.balestra_db
+        .prepare(
+          "SELECT c.id, c.name, c.start_date, c.end_date, c.description, c.link, c.created_at FROM competitions c WHERE EXISTS (SELECT 1 FROM competition_users cu WHERE cu.competition_id = c.id AND cu.user_id = ?1) OR ?2 = 1 ORDER BY c.start_date DESC"
+        )
+        .bind(user.id, isSuperAdmin(user) ? 1 : 0)
+        .all();
+      return jsonResponse({ competitions: results });
+    }
+
+    if (url.pathname === "/api/competitions" && request.method === "POST") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const body = await readBody(request);
+      if (!body || typeof body.name !== "string" || body.name.trim().length === 0) {
+        return jsonResponse({ error: "name is required" }, 400);
+      }
+      if (!body.start_date || !body.end_date) {
+        return jsonResponse({ error: "start_date and end_date are required" }, 400);
+      }
+
+      const createdAt = new Date().toISOString();
+      const description = typeof body.description === "string" ? body.description.trim() : "";
+      const link = typeof body.link === "string" ? body.link.trim() : "";
+
+      const result = await env.balestra_db
+        .prepare(
+          "INSERT INTO competitions (name, start_date, end_date, description, link, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+        )
+        .bind(body.name.trim(), body.start_date, body.end_date, description, link, createdAt)
+        .run();
+
+      const competitionId = result.meta?.last_row_id;
+      if (competitionId) {
+        await env.balestra_db
+          .prepare(
+            "INSERT INTO competition_users (competition_id, user_id, role, created_at) VALUES (?1, ?2, 'admin', ?3)"
+          )
+          .bind(competitionId, user.id, createdAt)
+          .run();
+      }
+
+      return jsonResponse({ ok: true, id: competitionId }, 201);
+    }
+
+    if (url.pathname.startsWith("/api/competitions/") && request.method === "PATCH") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canEdit = await hasCompetitionAdmin(env, id, user);
+      if (!canEdit) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const body = await readBody(request);
+      if (!body || typeof body.name !== "string" || body.name.trim().length === 0) {
+        return jsonResponse({ error: "name is required" }, 400);
+      }
+      if (!body.start_date || !body.end_date) {
+        return jsonResponse({ error: "start_date and end_date are required" }, 400);
+      }
+
+      const description = typeof body.description === "string" ? body.description.trim() : "";
+      const link = typeof body.link === "string" ? body.link.trim() : "";
+
+      const result = await env.balestra_db
+        .prepare(
+          "UPDATE competitions SET name = ?1, start_date = ?2, end_date = ?3, description = ?4, link = ?5 WHERE id = ?6"
+        )
+        .bind(body.name.trim(), body.start_date, body.end_date, description, link, id)
+        .run();
+      if (result.changes === 0) return jsonResponse({ error: "Not Found" }, 404);
+      return jsonResponse({ ok: true });
+    }
+
+    if (url.pathname.startsWith("/api/competitions/") && request.method === "DELETE") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      if (!isSuperAdmin(user)) return jsonResponse({ error: "Forbidden" }, 403);
+
+      await env.balestra_db
+        .prepare("DELETE FROM competition_users WHERE competition_id = ?1")
+        .bind(id)
+        .run();
+      await env.balestra_db
+        .prepare("DELETE FROM competitions WHERE id = ?1")
+        .bind(id)
+        .run();
+      return jsonResponse({ ok: true });
+    }
+
+    if (url.pathname.startsWith("/api/competitions/") && url.pathname.endsWith("/roles") && request.method === "GET") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canView = await hasCompetitionAdmin(env, id, user);
+      if (!canView) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const { results } = await env.balestra_db
+        .prepare(
+          "SELECT cu.user_id, cu.role, u.email, u.prenom, u.nom FROM competition_users cu JOIN users u ON u.id = cu.user_id WHERE cu.competition_id = ?1 ORDER BY cu.role, u.email"
+        )
+        .bind(id)
+        .all();
+      return jsonResponse({ users: results });
+    }
+
+    if (url.pathname.startsWith("/api/competitions/") && url.pathname.endsWith("/roles") && request.method === "POST") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canEdit = await hasCompetitionAdmin(env, id, user);
+      if (!canEdit) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const body = await readBody(request);
+      if (!body || !body.user_id || !body.role) {
+        return jsonResponse({ error: "user_id and role are required" }, 400);
+      }
+      const role = String(body.role);
+      if (!["admin", "jury", "technique"].includes(role)) {
+        return jsonResponse({ error: "invalid role" }, 400);
+      }
+      await env.balestra_db
+        .prepare(
+          "INSERT OR IGNORE INTO competition_users (competition_id, user_id, role, created_at) VALUES (?1, ?2, ?3, ?4)"
+        )
+        .bind(id, body.user_id, role, new Date().toISOString())
+        .run();
+      return jsonResponse({ ok: true });
+    }
+
+    if (url.pathname.startsWith("/api/competitions/") && url.pathname.endsWith("/roles") && request.method === "DELETE") {
+      const { user, error } = await requireAuth(request, env);
+      if (error) return error;
+
+      const id = url.pathname.split("/")[3];
+      if (!id || Number.isNaN(Number(id))) {
+        return jsonResponse({ error: "invalid id" }, 400);
+      }
+      const canEdit = await hasCompetitionAdmin(env, id, user);
+      if (!canEdit) return jsonResponse({ error: "Forbidden" }, 403);
+
+      const body = await readBody(request);
+      if (!body || !body.user_id || !body.role) {
+        return jsonResponse({ error: "user_id and role are required" }, 400);
+      }
+      await env.balestra_db
+        .prepare("DELETE FROM competition_users WHERE competition_id = ?1 AND user_id = ?2 AND role = ?3")
+        .bind(id, body.user_id, body.role)
+        .run();
+      return jsonResponse({ ok: true });
+    }
+
     if (url.pathname === "/api/users" && request.method === "POST") {
       const { user, error } = await requireAuth(request, env);
       if (error) return error;
@@ -332,7 +535,7 @@ export default {
       if (isSuperAdmin(user)) {
         const { results } = await env.balestra_db
           .prepare(
-            "SELECT c.id, c.name, c.category, c.club, c.fencers, c.description, c.tech_code, c.created_at, c.owner_user_id, u.email as owner_email, 0 as is_shared FROM combats c JOIN users u ON u.id = c.owner_user_id ORDER BY c.id DESC"
+            "SELECT c.id, c.name, c.category, c.club, c.fencers, c.description, c.tech_code, c.created_at, c.owner_user_id, c.competition_id, u.email as owner_email, 0 as is_shared FROM combats c JOIN users u ON u.id = c.owner_user_id ORDER BY c.id DESC"
           )
           .all();
         return jsonResponse({ combats: results });
@@ -340,7 +543,7 @@ export default {
 
       const { results } = await env.balestra_db
         .prepare(
-          "SELECT c.id, c.name, c.category, c.club, c.fencers, c.description, c.tech_code, c.created_at, c.owner_user_id, u.email as owner_email, CASE WHEN c.owner_user_id != ?1 THEN 1 ELSE 0 END as is_shared FROM combats c JOIN users u ON u.id = c.owner_user_id LEFT JOIN combat_shares s ON s.combat_id = c.id AND s.user_id = ?1 WHERE c.owner_user_id = ?1 OR s.user_id = ?1 ORDER BY c.id DESC"
+          "SELECT DISTINCT c.id, c.name, c.category, c.club, c.fencers, c.description, c.tech_code, c.created_at, c.owner_user_id, c.competition_id, u.email as owner_email, CASE WHEN c.owner_user_id != ?1 THEN 1 ELSE 0 END as is_shared FROM combats c JOIN users u ON u.id = c.owner_user_id LEFT JOIN combat_shares s ON s.combat_id = c.id AND s.user_id = ?1 LEFT JOIN competition_users cu ON cu.competition_id = c.competition_id AND cu.user_id = ?1 WHERE c.owner_user_id = ?1 OR s.user_id = ?1 OR cu.user_id = ?1 ORDER BY c.id DESC"
         )
         .bind(user.id)
         .all();
@@ -358,6 +561,15 @@ export default {
       if (!body.category || typeof body.category !== "string" || body.category.trim().length === 0) {
         return jsonResponse({ error: "category is required" }, 400);
       }
+      let competitionId = null;
+      if (body.competition_id !== undefined && body.competition_id !== null && body.competition_id !== "") {
+        competitionId = Number(body.competition_id);
+        if (Number.isNaN(competitionId)) {
+          return jsonResponse({ error: "invalid competition_id" }, 400);
+        }
+        const canCreate = await hasCompetitionAdmin(env, competitionId, user);
+        if (!canCreate) return jsonResponse({ error: "Forbidden" }, 403);
+      }
       const club = typeof body.club === "string" ? body.club.trim() : "";
       const description = typeof body.description === "string" ? body.description.trim() : "";
       const fencers = Array.isArray(body.fencers) ? body.fencers : [];
@@ -365,7 +577,7 @@ export default {
       const createdAt = new Date().toISOString();
       await env.balestra_db
         .prepare(
-          "INSERT INTO combats (name, category, club, fencers, description, tech_code, created_at, owner_user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
+          "INSERT INTO combats (name, category, club, fencers, description, tech_code, created_at, owner_user_id, competition_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
         )
         .bind(
           body.name.trim(),
@@ -375,7 +587,8 @@ export default {
           description,
           techCode,
           createdAt,
-          user.id
+          user.id,
+          competitionId
         )
         .run();
       return jsonResponse({ ok: true, created_at: createdAt, tech_code: techCode }, 201);
@@ -389,8 +602,8 @@ export default {
       if (!id || Number.isNaN(Number(id))) {
         return jsonResponse({ error: "invalid id" }, 400);
       }
-      const canEdit = await canEditCombat(env, id, user);
-      if (!canEdit) return jsonResponse({ error: "Forbidden" }, 403);
+      const canEditExisting = await canEditCombat(env, id, user);
+      if (!canEditExisting) return jsonResponse({ error: "Forbidden" }, 403);
 
       const body = await readBody(request);
       if (!body || typeof body.name !== "string" || body.name.trim().length === 0) {
@@ -399,14 +612,31 @@ export default {
       if (!body.category || typeof body.category !== "string" || body.category.trim().length === 0) {
         return jsonResponse({ error: "category is required" }, 400);
       }
+      let competitionId = null;
+      if (body.competition_id !== undefined && body.competition_id !== null && body.competition_id !== "") {
+        competitionId = Number(body.competition_id);
+        if (Number.isNaN(competitionId)) {
+          return jsonResponse({ error: "invalid competition_id" }, 400);
+        }
+        const canEditNewCompetition = await hasCompetitionAdmin(env, competitionId, user);
+        if (!canEditNewCompetition) return jsonResponse({ error: "Forbidden" }, 403);
+      }
       const club = typeof body.club === "string" ? body.club.trim() : "";
       const description = typeof body.description === "string" ? body.description.trim() : "";
       const fencers = Array.isArray(body.fencers) ? body.fencers : [];
       const result = await env.balestra_db
         .prepare(
-          "UPDATE combats SET name = ?1, category = ?2, club = ?3, fencers = ?4, description = ?5 WHERE id = ?6"
+          "UPDATE combats SET name = ?1, category = ?2, club = ?3, fencers = ?4, description = ?5, competition_id = ?6 WHERE id = ?7"
         )
-        .bind(body.name.trim(), body.category.trim(), club, JSON.stringify(fencers), description, id)
+        .bind(
+          body.name.trim(),
+          body.category.trim(),
+          club,
+          JSON.stringify(fencers),
+          description,
+          competitionId,
+          id
+        )
         .run();
       if (result.changes === 0) return jsonResponse({ error: "Not Found" }, 404);
       return jsonResponse({ ok: true });

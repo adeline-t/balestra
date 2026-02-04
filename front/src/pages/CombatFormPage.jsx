@@ -7,12 +7,15 @@ export default function CombatFormPage({
   editing,
   combatName,
   combatCategory,
+  competitionId,
+  competitions,
   combatClub,
   combatDescription,
   combatFencers,
   newFencer,
   onNameChange,
   onCategoryChange,
+  onCompetitionChange,
   onClubChange,
   onDescriptionChange,
   onNewFencerChange,
@@ -47,6 +50,17 @@ export default function CombatFormPage({
               onChange={(e) => onNameChange(e.target.value)}
               placeholder="Ex: Finale senior - Club X"
             />
+          </label>
+          <label>
+            Competition
+            <select value={competitionId || ""} onChange={(e) => onCompetitionChange(e.target.value)}>
+              <option value="">Selectionner</option>
+              {competitions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Categorie
