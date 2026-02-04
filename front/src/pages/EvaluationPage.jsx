@@ -108,26 +108,10 @@ export default function EvaluationPage({
       </header>
 
       <section className="card">
-        <div className="tabs">
-          <button
-            type="button"
-            className={sessionType === "technique" ? "tab-btn active" : "tab-btn"}
-            onClick={() => onSessionChange("technique")}
-          >
-            Programme Technique
-          </button>
-          <button
-            type="button"
-            className={sessionType === "libre" ? "tab-btn active" : "tab-btn"}
-            onClick={() => onSessionChange("libre")}
-          >
-            Programme Libre
-          </button>
-        </div>
         <p className="muted">
           {sessionType === "technique"
-            ? "Notation technique uniquement."
-            : "Programme Libre : technique + artistique."}
+            ? "Programme Technique · notation technique uniquement."
+            : "Programme Libre · notation technique + artistique."}
         </p>
       </section>
 

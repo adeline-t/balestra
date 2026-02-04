@@ -412,6 +412,88 @@ th {
   gap: 12px;
 }
 
+.combat-list {
+  display: grid;
+  gap: 18px;
+}
+
+.combat-card {
+  border: 1px solid rgba(15, 21, 37, 0.12);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(14, 25, 42, 0.05);
+  display: grid;
+  gap: 14px;
+}
+
+.combat-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.combat-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.combat-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.combat-primary {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.combat-row-secondary {
+  border-top: 1px solid rgba(15, 21, 37, 0.08);
+  padding-top: 12px;
+}
+
+.combat-links {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.action-menu {
+  position: relative;
+}
+
+.action-menu summary {
+  list-style: none;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--c-blue);
+}
+
+.action-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-menu-body {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--c-chip);
+  display: grid;
+  gap: 10px;
+}
+
+.action-divider {
+  height: 1px;
+  background: rgba(15, 21, 37, 0.1);
+}
+
 .grid-row {
   display: flex;
   justify-content: space-between;
@@ -599,6 +681,40 @@ th {
   gap: 6px;
   color: var(--c-red);
   font-weight: 800;
+}
+
+.info-icon {
+  margin-left: 6px;
+  border: none;
+  background: transparent;
+  color: var(--c-blue);
+  cursor: help;
+  font-size: 0.9em;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.info-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.info-panel {
+  position: absolute;
+  top: 120%;
+  left: 0;
+  min-width: 220px;
+  max-width: 280px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 21, 37, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 28px rgba(14, 25, 42, 0.15);
+  color: var(--c-text);
+  font-size: 0.9rem;
+  z-index: 5;
 }
 
 .penalty-save {
